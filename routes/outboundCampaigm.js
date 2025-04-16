@@ -7,6 +7,17 @@ require('dotenv').config();
 const host = process.env.API_HOST;
 const wsHost = process.env.WS_HOST;
 
+// 創建 WebSocket Server
+const clientWs = new WebSocket.Server({ port: 8080 }); // 你可以自訂 port
+
+clientWs.on('connection', (ws) => {
+  console.log('WebSocket Server: Client connected');
+
+  ws.on('close', () => {
+    console.log('WebSocket Server: Client disconnected');
+  });
+});
+
 // 創建一個 axios 實例
 const axiosInstance = axios.create({
   baseURL: host, // 你的 API 基礎 URL
@@ -20,19 +31,25 @@ async function get3cxToken (grant_type, client_id, client_secret) {
     params.append('client_id', client_id);
     params.append('client_secret', client_secret);
 
-    const response = await axiosInstance.post('/connect/token', params, {
+    const response = await axios.post(`${host}/connect/token`, params, {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded'
       }
     });
 
+    console.log('取得 3CX token 成功:', response.data.access_token);
+
+    if (axiosInstance.defaults.headers.common['Authorization']) {
+      // 如果已經有 Authorization 標頭，則刪除
+        delete axiosInstance.defaults.headers.common['Authorization'];
+    }
     // 設定預設的 Authorization 標頭
     axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
 
     return response.data.access_token;
   } catch (error) {
-  console.error('Error get3cxToken request:', error.message);
-  throw new Error('Failed to fetch token');
+    console.error('Error get3cxToken request:', error.message);
+    throw new Error('Failed to fetch token');
   }
 };
 
@@ -121,6 +138,11 @@ function callcontrolWs (token, phone, dn, device_id) {
           participants: participants
         }
         console.log('整合 參與者資訊 和 WebSocket server 接收數據 : ', resultData);
+
+        // 傳送 resultData 給 WebSocket Server 的所有連線客戶端
+        clientWs.clients.forEach((client) => {
+          client.send(JSON.stringify(resultData));
+        });
         
         if (event_type === 1) {
           console.log('event_type:', event_type);
