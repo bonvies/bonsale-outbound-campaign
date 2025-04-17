@@ -1,11 +1,22 @@
 const express = require('express');
 const axios = require('axios');
 const WebSocket = require('ws');
+const cors = require('cors');
 const router = express.Router();
 require('dotenv').config();
 
 const host = process.env.API_HOST;
 const wsHost = process.env.WS_HOST;
+
+// 啟用 CORS，允許所有來源
+router.use(cors());
+
+// 如果需要限制來源，可以這樣設定
+// router.use(cors({
+//   origin: 'http://你的前端網址',
+//   methods: ['GET', 'POST'],
+//   allowedHeaders: ['Content-Type', 'Authorization']
+// }));
 
 // 創建 WebSocket Server
 const clientWs = new WebSocket.Server({ port: 8080 }); // 你可以自訂 port
@@ -84,6 +95,18 @@ async function makeCall (dn, device_id, reason, destination, timeout = 30) {
   }
 };
 
+async function hangupCall (dn, id) {
+  try {
+    const response = await axiosInstance.post(`/callcontrol/${dn}/participants/${id}/drop`, {});
+    console.log('成功 掛斷電話請求:', response.data);
+    // 回傳 API 的回應
+    return response.data;
+  } catch (error) {
+    console.error('Error hangupCall request:', error.message);
+    throw new Error('Failed to hangupCall');
+  }
+};
+
 // 取得參與者資訊 電話撥出時可用來抓取對方是否接聽
 async function getParticipants (dn) {
   try {
@@ -97,8 +120,8 @@ async function getParticipants (dn) {
 };
 
 // 建立 WebSocket 連線 查看自動撥號狀態
-function callcontrolWs (token, phone, dn, device_id) {
-  const phoneNumbersArray = phone.split(',');
+function callcontrolWs (token, phones, dn, device_id, caller) {
+  const phoneNumbersArray = phones.split(',');
   let nowCall = 0;
 
   try {
@@ -132,9 +155,14 @@ function callcontrolWs (token, phone, dn, device_id) {
         const { event_type } = messageJson.event;
 
         // 整合 參與者資訊 和 WebSocket server 接收數據
+        console.log('caller.devices:', caller.devices);
         const resultData = {
-          event_type: event_type,
           event: messageJson.event,
+          caller: {
+            dn: caller.dn,
+            type: caller.type,
+            devices: caller.devices,
+          },
           participants: participants
         }
         console.log('整合 參與者資訊 和 WebSocket server 接收數據 : ', resultData);
@@ -151,7 +179,7 @@ function callcontrolWs (token, phone, dn, device_id) {
           console.log(`前一隻手機掛斷了 5秒後準備撥給 第 ${nowCall + 1} 隻手機: ${phoneNumbersArray[nowCall]}`);
 
           if (!phoneNumbersArray[nowCall]) {
-            console.log('No more phone numbers to call');
+            console.log('沒有更多的電話號碼可以撥打');
             nowCall = 0; // 重置計數器
             ws.close(); // 關閉 WebSocket 連線
             return;
@@ -187,37 +215,55 @@ function callcontrolWs (token, phone, dn, device_id) {
 
 // 主要 的 API
 router.post('/', async function(req, res, next) {
-  const { grant_type, client_id, client_secret, phone } = req.body;
+  const { grant_type, client_id, client_secret, phones } = req.body;
+  console.log('req.body:', req.body);
 
-  if (!grant_type || !client_id || !client_secret || !phone) {
+  if (!grant_type || !client_id || !client_secret || !phones) {
     return res.status(400).send('Missing required fields');
   }
   try {
     // 先取得 3CX token 
     const token = await get3cxToken(grant_type, client_id, client_secret);
     console.log(token);
+
     // 取得 撥號分機資訊 (需要設定 queue)
     const caller = await getCaller();
     const { dn, device_id } = caller.devices[0]; // TODO 這邊我只有取第一台設備資訊
 
     // 進行初次撥打電話
-    const phoneNumbersArray = phone.split(',');
+    const phoneNumbersArray = phones.split(',');
     makeCall(dn, device_id, 'outbound', phoneNumbersArray[0]);
 
     // 建立 WebSocket 連線
     try {
-      callcontrolWs(token, phone, dn, device_id);
+      callcontrolWs(token, phones, dn, device_id, caller);
     } catch (error) {
       console.error('Error establishing WebSocket connection:', error.message);
     }
 
     // Log the received data (for debugging purposes)
-    console.log({ grant_type, client_id, client_secret, phone });
+    console.log({ grant_type, client_id, client_secret, phones });
 
-    res.status(200).send('Request received successfully');
+    res.status(200).send('Request outboundCampaigm successfully');
   } catch (error) {
     console.error('Error in POST /:', error.message);
     res.status(500).send('Internal Server Error');
+  }
+});
+
+// 掛斷當前撥號的對象
+router.post('/hangup', async function(req, res, next) {
+  const {dn, id} = req.body;
+  if (!dn || !id) {
+    return res.status(400).send('Missing required fields');
+  }
+  try {
+    // 進行掛斷電話
+    await hangupCall(dn, id);
+    res.status(200).send('Request hangup successfully');
+  } catch (error) {
+    console.error('Error in POST /hangup:', error.message);
+    return res.status(500).send('Internal Server Error');
   }
 });
 
