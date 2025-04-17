@@ -1,15 +1,15 @@
 const express = require('express');
 const axios = require('axios');
 const WebSocket = require('ws');
-const cors = require('cors');
+// const cors = require('cors');
 const router = express.Router();
 require('dotenv').config();
 
 const host = process.env.API_HOST;
 const wsHost = process.env.WS_HOST;
 
-// 啟用 CORS，允許所有來源
-router.use(cors());
+// // 啟用 CORS，允許所有來源
+// router.use(cors());
 
 // 如果需要限制來源，可以這樣設定
 // router.use(cors({

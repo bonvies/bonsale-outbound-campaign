@@ -3,6 +3,8 @@ const express = require('express');
 const path = require('path');
 const cookieParser = require('cookie-parser');
 const logger = require('morgan');
+const cors = require('cors');
+
 
 const indexRouter = require('./routes/index');
 const apiRouter = require('./routes/api');
@@ -19,6 +21,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// 啟用 CORS
+app.use(cors()); // 預設允許所有來源
+// 如果需要更精細的控制，可以傳入配置，例如：
+// app.use(cors({ origin: 'http://example.com', methods: ['GET', 'POST'] }));
 
 app.use('/', indexRouter);
 app.use('/api', apiRouter);
