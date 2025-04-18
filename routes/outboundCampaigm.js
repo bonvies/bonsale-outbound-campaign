@@ -7,6 +7,8 @@ require('dotenv').config();
 const host = process.env.API_HOST;
 const wsHost = process.env.WS_HOST;
 
+const callGapTime = parseInt(process.env.CALL_GAP_TIME) || 5; // 預設 5 秒
+
 // 創建 WebSocket Server
 const clientWs = new WebSocket.Server({ port: 8080 }); // 你可以自訂 port
 
@@ -180,19 +182,19 @@ function createWs (token, phones, dn, device_id, caller, client_id) {
           console.log('event_type:', event_type);
           nowCall++;
           console.log('=================== 我是分隔線 ====================');
-          // console.log(`撥打者 ${caller.dn} / 前一隻手機掛斷了 5秒後準備撥給 第 ${nowCall + 1} 隻手機: ${phoneNumbersArray[nowCall]}`);
-          console.log(`撥打者 ${client_id} / 前一隻手機掛斷了 5秒後準備撥給下隻手機`);
+          // console.log(`撥打者 ${caller.dn} / 前一隻手機掛斷了 ${callGapTime} 秒後準備撥給 第 ${nowCall + 1} 隻手機: ${phoneNumbersArray[nowCall]}`);
+          console.log(`撥打者 ${client_id} / 前一隻手機掛斷了 ${callGapTime} 秒後準備撥給下隻手機`);
           if (!phoneNumbersArray[nowCall]) {
             console.log('沒有更多的電話號碼可以撥打');
             nowCall = 0; // 重置計數器
             ws.close(); // 關閉 WebSocket 連線
             return;
           } else {
-            // 等待 5 秒後撥打下一個電話
+            // 等待 ${callGapTime} 秒後撥打下一個電話
             setTimeout(async () => {
               console.log(`撥打者 ${client_id} / 準備撥給 第 ${nowCall + 1} 隻手機: ${phoneNumbersArray[nowCall]}`);
               await makeCall(token, dn, device_id, 'outbound', phoneNumbersArray[nowCall]);
-            }, 5000);
+            }, callGapTime * 1000); // 轉換為毫秒
           }
         }
 
@@ -243,7 +245,10 @@ router.post('/', async function(req, res, next) {
     // // Log the received data (for debugging purposes)
     // console.log({ grant_type, client_id, client_secret, phones });
 
-    res.status(200).send('Request outboundCampaigm successfully');
+    res.status(200).send(JSON.stringify({
+      message: 'Request outboundCampaigm successfully',
+      token_3cx: token,
+    }));
   } catch (error) {
     console.error('Error in POST /:', error.message);
     res.status(500).send('Internal Server Error');
@@ -252,13 +257,13 @@ router.post('/', async function(req, res, next) {
 
 // 掛斷當前撥號的對象
 router.post('/hangup', async function(req, res, next) {
-  const {dn, id} = req.body;
+  const {dn, id, token_3cx} = req.body;
   if (!dn || !id) {
     return res.status(400).send('Missing required fields');
   }
   try {
     // 進行掛斷電話
-    await hangupCall(dn, id);
+    await hangupCall(token_3cx, dn, id);
     res.status(200).send('Request hangup successfully');
   } catch (error) {
     console.error('Error in POST /hangup:', error.message);
