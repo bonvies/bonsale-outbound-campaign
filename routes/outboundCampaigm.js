@@ -16,7 +16,7 @@ const wsHost = process.env.WS_HOST;
 const callGapTime = parseInt(process.env.CALL_GAP_TIME) || 5; // 預設 5 秒
 
 // 創建 WebSocket Server
-const clientWs = new WebSocket.Server({ port: 8080 }); // 你可以自訂 port
+const clientWs = new WebSocket.Server({ port: process.env.WS_PORT || 8080 }); // 你可以自訂 port
 
 clientWs.on('connection', (ws) => {
   console.log('WebSocket Server: Client connected');
