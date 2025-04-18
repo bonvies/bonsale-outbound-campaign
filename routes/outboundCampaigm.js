@@ -153,6 +153,7 @@ function createWs (token, phones, dn, device_id, caller, client_id) {
         // console.log('caller.devices:', caller.devices);
         const resultData = {
           ...messageJson,
+          client_id,
           caller: {
             dn: caller.dn,
             type: caller.type,
