@@ -5,14 +5,12 @@ const router = express.Router();
 const {
   get3cxToken,
   makeCall,
-  hangupCall,
   getCaller,
   getParticipants
 } = require('../services/callControl.js');
 
 require('dotenv').config();
 
-const host = process.env.API_HOST;
 const wsHost = process.env.WS_HOST;
 
 const callGapTime = parseInt(process.env.CALL_GAP_TIME) || 5; // 預設 5 秒
