@@ -103,7 +103,7 @@ async function getParticipants (token, dn) {
         Authorization: `Bearer ${token}`,
       },
     });
-    console.log('參與者資訊：', response.data);
+    // console.log('參與者資訊：', response.data);
     return response.data;
   } catch (error) {
     console.error('Error getParticipants request:', error.message);
@@ -112,7 +112,7 @@ async function getParticipants (token, dn) {
 };
 
 // 建立 WebSocket 連線 查看自動撥號狀態
-function createWs (token, phones, dn, device_id, caller) {
+function createWs (token, phones, dn, device_id, caller, client_id) {
   const phoneNumbersArray = phones.split(',');
   let nowCall = 0;
 
@@ -125,13 +125,12 @@ function createWs (token, phones, dn, device_id, caller) {
     });
 
     ws.on('open', async function open() {
-      console.log('WebSocket connection established');
+      // console.log('WebSocket connection established');
 
       // 進行初次撥打電話
       const phoneNumbersArray = phones.split(',');
+      console.log(`撥打者 ${client_id} / 準備撥給 第 ${nowCall + 1} 隻手機: ${phoneNumbersArray[nowCall]}`);
       await makeCall(token, dn, device_id, 'outbound', phoneNumbersArray[0]);
-      // 可以在這裡發送訊息到 WebSocket 伺服器
-      // ws.send(JSON.stringify({ message: 'Hello WebSocket Server!' }));
     });
 
     ws.on('message', async function message(data) {
@@ -146,7 +145,7 @@ function createWs (token, phones, dn, device_id, caller) {
         // 如果是 JSON 格式，嘗試解析
         const messageJson = JSON.parse(messageString);
     
-        console.log('WebSocket server 接收數據 : ', messageJson);
+        // console.log('WebSocket server 接收數據 : ', messageJson);
 
         const { event_type } = messageJson.event;
 
@@ -161,7 +160,15 @@ function createWs (token, phones, dn, device_id, caller) {
           },
           participants: participants
         }
-        console.log('整合 參與者資訊 和 WebSocket server 接收數據 : ', resultData);
+
+        // if(client_id === 'leo'){
+        //   console.error('整合 參與者資訊 和 WebSocket server 接收數據 : ', resultData);
+        // } else {
+        //   console.log('整合 參與者資訊 和 WebSocket server 接收數據 : ', resultData);
+        // }
+
+        // console.log('整合 參與者資訊 和 WebSocket server 接收數據 : ', resultData);
+        
 
         // 傳送 resultData 給 WebSocket Server 的所有連線客戶端
         clientWs.clients.forEach((client) => {
@@ -172,8 +179,8 @@ function createWs (token, phones, dn, device_id, caller) {
           console.log('event_type:', event_type);
           nowCall++;
           console.log('=================== 我是分隔線 ====================');
-          console.log(`撥打者 ${caller.dn} / 前一隻手機掛斷了 5秒後準備撥給 第 ${nowCall + 1} 隻手機: ${phoneNumbersArray[nowCall]}`);
-
+          // console.log(`撥打者 ${caller.dn} / 前一隻手機掛斷了 5秒後準備撥給 第 ${nowCall + 1} 隻手機: ${phoneNumbersArray[nowCall]}`);
+          console.log(`撥打者 ${client_id} / 前一隻手機掛斷了 5秒後準備撥給下隻手機`);
           if (!phoneNumbersArray[nowCall]) {
             console.log('沒有更多的電話號碼可以撥打');
             nowCall = 0; // 重置計數器
@@ -182,6 +189,7 @@ function createWs (token, phones, dn, device_id, caller) {
           } else {
             // 等待 5 秒後撥打下一個電話
             setTimeout(async () => {
+              console.log(`撥打者 ${client_id} / 準備撥給 第 ${nowCall + 1} 隻手機: ${phoneNumbersArray[nowCall]}`);
               await makeCall(token, dn, device_id, 'outbound', phoneNumbersArray[nowCall]);
             }, 5000);
           }
@@ -194,11 +202,11 @@ function createWs (token, phones, dn, device_id, caller) {
     });
 
     ws.on('close', function close() {
-      console.log('WebSocket connection closed');
+      // console.log('WebSocket connection closed');
     });
 
     ws.on('error', function error(err) {
-      console.error('WebSocket error:', err.message);
+      // console.error('WebSocket error:', err.message);
       throw new Error('WebSocket connection error');
     });
 
@@ -211,7 +219,6 @@ function createWs (token, phones, dn, device_id, caller) {
 // 主要 的 API
 router.post('/', async function(req, res, next) {
   const { grant_type, client_id, client_secret, phones } = req.body;
-  console.log('req.body:', req.body);
 
   if (!grant_type || !client_id || !client_secret || !phones) {
     return res.status(400).send('Missing required fields');
@@ -219,7 +226,7 @@ router.post('/', async function(req, res, next) {
   try {
     // 先取得 3CX token 
     const token = await get3cxToken(grant_type, client_id, client_secret);
-    console.log(token);
+    // console.log(token);
 
     // 取得 撥號分機資訊 (需要設定 queue)
     const caller = await getCaller(token);
@@ -227,13 +234,13 @@ router.post('/', async function(req, res, next) {
 
     // 建立 WebSocket 連線
     try {
-      createWs(token, phones, dn, device_id, caller);
+      createWs(token, phones, dn, device_id, caller, client_id);
     } catch (error) {
       console.error('Error establishing WebSocket connection:', error.message);
     }
 
-    // Log the received data (for debugging purposes)
-    console.log({ grant_type, client_id, client_secret, phones });
+    // // Log the received data (for debugging purposes)
+    // console.log({ grant_type, client_id, client_secret, phones });
 
     res.status(200).send('Request outboundCampaigm successfully');
   } catch (error) {
