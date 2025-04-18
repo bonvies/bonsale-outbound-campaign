@@ -1,5 +1,4 @@
 const express = require('express');
-const axios = require('axios');
 const WebSocket = require('ws');
 const router = express.Router();
 const {
@@ -11,12 +10,11 @@ const {
 
 require('dotenv').config();
 
-const wsHost = process.env.WS_HOST;
-
+const wsHost = process.env.WS_HOST_3CX
 const callGapTime = parseInt(process.env.CALL_GAP_TIME) || 5; // 預設 5 秒
 
 // 創建 WebSocket Server
-const clientWs = new WebSocket.Server({ port: process.env.WS_PORT || 8080 }); // 你可以自訂 port
+const clientWs = new WebSocket.Server({ port: process.env.WS_PORT || 3021 }); // 你可以自訂 port
 
 clientWs.on('connection', (ws) => {
   console.log('WebSocket Server: Client connected');

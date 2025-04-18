@@ -13,10 +13,10 @@ RUN npm install
 COPY . .
 
 # Expose the port the app runs on (REST API)
-EXPOSE 3010
+EXPOSE 3020
 
 # Expose the WebSocket server port
-EXPOSE 8080
+EXPOSE 3021
 
 # Command to run the application
 CMD ["node", "./bin/www"]

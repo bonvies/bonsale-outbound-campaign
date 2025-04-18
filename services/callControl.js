@@ -1,7 +1,7 @@
 const axios = require('axios');
 require('dotenv').config();
 
-const host = process.env.API_HOST;
+const host = process.env.HTTP_HOST_3CX;
 
 // 取得 3CX token
 async function get3cxToken (grant_type, client_id, client_secret) {
