@@ -2,6 +2,14 @@ const express = require('express');
 const axios = require('axios');
 const WebSocket = require('ws');
 const router = express.Router();
+const {
+  get3cxToken,
+  makeCall,
+  hangupCall,
+  getCaller,
+  getParticipants
+} = require('../services/callControl.js');
+
 require('dotenv').config();
 
 const host = process.env.API_HOST;
@@ -19,99 +27,6 @@ clientWs.on('connection', (ws) => {
     console.log('WebSocket Server: Client disconnected');
   });
 });
-
-// 取得 3CX token
-async function get3cxToken (grant_type, client_id, client_secret) {
-  try {
-    const params = new URLSearchParams();
-    params.append('grant_type', grant_type);
-    params.append('client_id', client_id);
-    params.append('client_secret', client_secret);
-
-    const response = await axios.post(`${host}/connect/token`, params, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    });
-
-    // console.log('取得 3CX token 成功:', response.data.access_token);
-    return response.data.access_token;
-  } catch (error) {
-    console.error('Error get3cxToken request:', error.message);
-    throw new Error('Failed to fetch token');
-  }
-};
-
-// 取得撥號者 讓 queue 去撥通電話
-async function getCaller (token) {
-  try {
-    const response = await axios.get(`${host}/callcontrol`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    const caller = response.data.find(item => item.type === 'Wqueue');
-    if (!caller) {
-      throw new Error('Caller not found');
-    }
-
-    return caller;
-  } catch (error) {
-    console.error('Error getCaller request:', error.message);
-    throw new Error('Failed to getCaller data');
-  } 
-};
-
-async function makeCall (token, dn, device_id, reason, destination, timeout = 30) {
-  try {
-    const response = await axios.post(`${host}/callcontrol/${dn}/devices/${device_id}/makecall`, {
-      reason,
-      destination,
-      timeout
-    }, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    // 回傳 API 的回應
-    return response.data;
-  } catch (error) {
-    console.error('Error makeCall request:', error.message);
-    throw new Error('Failed to makecall');
-  }
-};
-
-async function hangupCall (token, dn, id) {
-  try {
-    const response = await axios.post(`${host}/callcontrol/${dn}/participants/${id}/drop`, {}, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    console.log('成功 掛斷電話請求:', response.data);
-    // 回傳 API 的回應
-    return response.data;
-  } catch (error) {
-    console.error('Error hangupCall request:', error.message);
-    throw new Error('Failed to hangupCall');
-  }
-};
-
-// 取得參與者資訊 電話撥出時可用來抓取對方是否接聽
-async function getParticipants (token, dn) {
-  try {
-    const response = await axios.get(`${host}/callcontrol/${dn}/participants`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    // console.log('參與者資訊：', response.data);
-    return response.data;
-  } catch (error) {
-    console.error('Error getParticipants request:', error.message);
-    throw new Error('Failed to get participants');
-  }
-};
 
 // 建立 WebSocket 連線 查看自動撥號狀態
 function createWs (token, phones, dn, device_id, caller, client_id) {
@@ -232,7 +147,7 @@ router.post('/', async function(req, res, next) {
     // console.log(token);
 
     // 取得 撥號分機資訊 (需要設定 queue)
-    const caller = await getCaller(token);
+    const caller = await getCaller(token); // 取得撥號者
     const { dn, device_id } = caller.devices[0]; // TODO 這邊我只有取第一台設備資訊
 
     // 建立 WebSocket 連線
@@ -252,22 +167,6 @@ router.post('/', async function(req, res, next) {
   } catch (error) {
     console.error('Error in POST /:', error.message);
     res.status(500).send('Internal Server Error');
-  }
-});
-
-// 掛斷當前撥號的對象
-router.post('/hangup', async function(req, res, next) {
-  const {dn, id, token_3cx} = req.body;
-  if (!dn || !id) {
-    return res.status(400).send('Missing required fields');
-  }
-  try {
-    // 進行掛斷電話
-    await hangupCall(token_3cx, dn, id);
-    res.status(200).send('Request hangup successfully');
-  } catch (error) {
-    console.error('Error in POST /hangup:', error.message);
-    return res.status(500).send('Internal Server Error');
   }
 });
 
