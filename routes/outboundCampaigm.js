@@ -1,22 +1,11 @@
 const express = require('express');
 const axios = require('axios');
 const WebSocket = require('ws');
-// const cors = require('cors');
 const router = express.Router();
 require('dotenv').config();
 
 const host = process.env.API_HOST;
 const wsHost = process.env.WS_HOST;
-
-// // 啟用 CORS，允許所有來源
-// router.use(cors());
-
-// 如果需要限制來源，可以這樣設定
-// router.use(cors({
-//   origin: 'http://你的前端網址',
-//   methods: ['GET', 'POST'],
-//   allowedHeaders: ['Content-Type', 'Authorization']
-// }));
 
 // 創建 WebSocket Server
 const clientWs = new WebSocket.Server({ port: 8080 }); // 你可以自訂 port
@@ -27,11 +16,6 @@ clientWs.on('connection', (ws) => {
   ws.on('close', () => {
     console.log('WebSocket Server: Client disconnected');
   });
-});
-
-// 創建一個 axios 實例
-const axiosInstance = axios.create({
-  baseURL: host, // 你的 API 基礎 URL
 });
 
 // 取得 3CX token
@@ -48,15 +32,7 @@ async function get3cxToken (grant_type, client_id, client_secret) {
       }
     });
 
-    console.log('取得 3CX token 成功:', response.data.access_token);
-
-    if (axiosInstance.defaults.headers.common['Authorization']) {
-      // 如果已經有 Authorization 標頭，則刪除
-        delete axiosInstance.defaults.headers.common['Authorization'];
-    }
-    // 設定預設的 Authorization 標頭
-    axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${response.data.access_token}`;
-
+    // console.log('取得 3CX token 成功:', response.data.access_token);
     return response.data.access_token;
   } catch (error) {
     console.error('Error get3cxToken request:', error.message);
@@ -65,9 +41,13 @@ async function get3cxToken (grant_type, client_id, client_secret) {
 };
 
 // 取得撥號者 讓 queue 去撥通電話
-async function getCaller () {
+async function getCaller (token) {
   try {
-    const response = await axiosInstance.get('/callcontrol');
+    const response = await axios.get(`${host}/callcontrol`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     const caller = response.data.find(item => item.type === 'Wqueue');
     if (!caller) {
       throw new Error('Caller not found');
@@ -80,12 +60,16 @@ async function getCaller () {
   } 
 };
 
-async function makeCall (dn, device_id, reason, destination, timeout = 30) {
+async function makeCall (token, dn, device_id, reason, destination, timeout = 30) {
   try {
-    const response = await axiosInstance.post(`/callcontrol/${dn}/devices/${device_id}/makecall`, {
+    const response = await axios.post(`${host}/callcontrol/${dn}/devices/${device_id}/makecall`, {
       reason,
       destination,
       timeout
+    }, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     });
     // 回傳 API 的回應
     return response.data;
@@ -95,9 +79,13 @@ async function makeCall (dn, device_id, reason, destination, timeout = 30) {
   }
 };
 
-async function hangupCall (dn, id) {
+async function hangupCall (token, dn, id) {
   try {
-    const response = await axiosInstance.post(`/callcontrol/${dn}/participants/${id}/drop`, {});
+    const response = await axios.post(`${host}/callcontrol/${dn}/participants/${id}/drop`, {}, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     console.log('成功 掛斷電話請求:', response.data);
     // 回傳 API 的回應
     return response.data;
@@ -108,9 +96,13 @@ async function hangupCall (dn, id) {
 };
 
 // 取得參與者資訊 電話撥出時可用來抓取對方是否接聽
-async function getParticipants (dn) {
+async function getParticipants (token, dn) {
   try {
-    const response = await axiosInstance.get(`/callcontrol/${dn}/participants`);
+    const response = await axios.get(`${host}/callcontrol/${dn}/participants`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     console.log('參與者資訊：', response.data);
     return response.data;
   } catch (error) {
@@ -120,7 +112,7 @@ async function getParticipants (dn) {
 };
 
 // 建立 WebSocket 連線 查看自動撥號狀態
-function callcontrolWs (token, phones, dn, device_id, caller) {
+function createWs (token, phones, dn, device_id, caller) {
   const phoneNumbersArray = phones.split(',');
   let nowCall = 0;
 
@@ -132,8 +124,12 @@ function callcontrolWs (token, phones, dn, device_id, caller) {
       }
     });
 
-    ws.on('open', function open() {
+    ws.on('open', async function open() {
       console.log('WebSocket connection established');
+
+      // 進行初次撥打電話
+      const phoneNumbersArray = phones.split(',');
+      await makeCall(token, dn, device_id, 'outbound', phoneNumbersArray[0]);
       // 可以在這裡發送訊息到 WebSocket 伺服器
       // ws.send(JSON.stringify({ message: 'Hello WebSocket Server!' }));
     });
@@ -141,7 +137,7 @@ function callcontrolWs (token, phones, dn, device_id, caller) {
     ws.on('message', async function message(data) {
       try {
         // 取得參與者資訊
-        const participants = await getParticipants(dn);
+        const participants = await getParticipants(token, dn);
         // console.log('參與者資訊 : ', participants);
 
         // 將 Buffer 轉換為字串
@@ -150,14 +146,14 @@ function callcontrolWs (token, phones, dn, device_id, caller) {
         // 如果是 JSON 格式，嘗試解析
         const messageJson = JSON.parse(messageString);
     
-        // console.log('WebSocket server 接收數據 : ', messageJson);
+        console.log('WebSocket server 接收數據 : ', messageJson);
 
         const { event_type } = messageJson.event;
 
         // 整合 參與者資訊 和 WebSocket server 接收數據
-        console.log('caller.devices:', caller.devices);
+        // console.log('caller.devices:', caller.devices);
         const resultData = {
-          event: messageJson.event,
+          ...messageJson,
           caller: {
             dn: caller.dn,
             type: caller.type,
@@ -176,7 +172,7 @@ function callcontrolWs (token, phones, dn, device_id, caller) {
           console.log('event_type:', event_type);
           nowCall++;
           console.log('=================== 我是分隔線 ====================');
-          console.log(`前一隻手機掛斷了 5秒後準備撥給 第 ${nowCall + 1} 隻手機: ${phoneNumbersArray[nowCall]}`);
+          console.log(`撥打者 ${caller.dn} / 前一隻手機掛斷了 5秒後準備撥給 第 ${nowCall + 1} 隻手機: ${phoneNumbersArray[nowCall]}`);
 
           if (!phoneNumbersArray[nowCall]) {
             console.log('沒有更多的電話號碼可以撥打');
@@ -185,11 +181,10 @@ function callcontrolWs (token, phones, dn, device_id, caller) {
             return;
           } else {
             // 等待 5 秒後撥打下一個電話
-            setTimeout(() => {
-              makeCall(dn, device_id, 'outbound', phoneNumbersArray[nowCall]);
+            setTimeout(async () => {
+              await makeCall(token, dn, device_id, 'outbound', phoneNumbersArray[nowCall]);
             }, 5000);
           }
-
         }
 
       } catch (error) {
@@ -227,16 +222,12 @@ router.post('/', async function(req, res, next) {
     console.log(token);
 
     // 取得 撥號分機資訊 (需要設定 queue)
-    const caller = await getCaller();
+    const caller = await getCaller(token);
     const { dn, device_id } = caller.devices[0]; // TODO 這邊我只有取第一台設備資訊
-
-    // 進行初次撥打電話
-    const phoneNumbersArray = phones.split(',');
-    makeCall(dn, device_id, 'outbound', phoneNumbersArray[0]);
 
     // 建立 WebSocket 連線
     try {
-      callcontrolWs(token, phones, dn, device_id, caller);
+      createWs(token, phones, dn, device_id, caller);
     } catch (error) {
       console.error('Error establishing WebSocket connection:', error.message);
     }
