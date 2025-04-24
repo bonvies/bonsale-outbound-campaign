@@ -81,7 +81,7 @@ function createWs (token, phones, dn, device_id, caller, client_id) {
         //   console.log('整合 參與者資訊 和 WebSocket server 接收數據 : ', resultData);
         // }
 
-        // console.log('整合 參與者資訊 和 WebSocket server 接收數據 : ', resultData);
+        console.log('整合 參與者資訊 和 WebSocket server 接收數據 : ', resultData);
         
 
         // 傳送 resultData 給 WebSocket Server 的所有連線客戶端
@@ -90,11 +90,11 @@ function createWs (token, phones, dn, device_id, caller, client_id) {
         });
         
         if (event_type === 1) {
-          console.log('event_type:', event_type);
+          // console.log('event_type:', event_type);
           nowCall++;
           console.log('=================== 我是分隔線 ====================');
           // console.log(`撥打者 ${caller.dn} / 前一隻手機掛斷了 ${callGapTime} 秒後準備撥給 第 ${nowCall + 1} 隻手機: ${phoneNumbersArray[nowCall]}`);
-          console.log(`撥打者 ${client_id} / 前一隻手機掛斷了 ${callGapTime} 秒後準備撥給下隻手機`);
+          console.log(`撥打者 ${client_id} / 前一隻手機接聽分機成功或中斷了 準備 ${callGapTime} 秒後準備撥給下隻手機`);
           if (!phoneNumbersArray[nowCall]) {
             console.log('沒有更多的電話號碼可以撥打');
             nowCall = 0; // 重置計數器
