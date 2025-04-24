@@ -8,6 +8,7 @@ const cors = require('cors');
 
 const indexRouter = require('./routes/index');
 const apiRouter = require('./routes/api');
+const bonsaleRouter = require('./routes/bonsale');
 const outboundCampaigmRouter = require('./routes/outboundCampaigm');
 
 const app = express();
@@ -29,6 +30,7 @@ app.use(cors()); // 預設允許所有來源
 
 app.use('/', indexRouter);
 app.use('/api', apiRouter);
+app.use('/bonsale', bonsaleRouter);
 app.use('/outboundCampaigm', outboundCampaigmRouter);
 
 // catch 404 and forward to error handler
