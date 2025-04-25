@@ -7,7 +7,8 @@ const cors = require('cors');
 
 
 const indexRouter = require('./routes/index');
-const apiRouter = require('./routes/api');
+const callControlRouter = require('./routes/callControl');
+const xApiRouter = require('./routes/xApi');
 const bonsaleRouter = require('./routes/bonsale');
 const outboundCampaigmRouter = require('./routes/outboundCampaigm');
 
@@ -29,8 +30,9 @@ app.use(cors()); // 預設允許所有來源
 // app.use(cors({ origin: 'http://example.com', methods: ['GET', 'POST'] }));
 
 app.use('/', indexRouter);
-app.use('/api', apiRouter);
+app.use('/callControl', callControlRouter);
 app.use('/bonsale', bonsaleRouter);
+app.use('/xApi', xApiRouter);
 app.use('/outboundCampaigm', outboundCampaigmRouter);
 
 // catch 404 and forward to error handler

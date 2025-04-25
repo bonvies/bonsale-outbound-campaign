@@ -38,6 +38,7 @@ async function makeCall (token, dn, device_id, reason, destination, timeout = 30
       },
     });
     // 回傳 API 的回應
+    // console.log('成功 撥打電話請求:', response.data);
     return response.data;
   } catch (error) {
     console.error('Error makeCall request:', error.message);
