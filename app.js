@@ -11,6 +11,7 @@ const callControlRouter = require('./routes/callControl');
 const xApiRouter = require('./routes/xApi');
 const bonsaleRouter = require('./routes/bonsale');
 const outboundCampaigmRouter = require('./routes/outboundCampaigm');
+const projectOutboundRouter = require('./routes/projectOutbound');
 
 const app = express();
 
@@ -34,6 +35,8 @@ app.use('/callControl', callControlRouter);
 app.use('/bonsale', bonsaleRouter);
 app.use('/xApi', xApiRouter);
 app.use('/outboundCampaigm', outboundCampaigmRouter);
+app.use('/projectOutbound', projectOutboundRouter);
+
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
