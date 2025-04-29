@@ -1,6 +1,7 @@
 const express = require('express');
 const WebSocket = require('ws');
 const router = express.Router();
+const { v4: uuidv4 } = require('uuid');
 const {
   get3cxToken,
   makeCall,
@@ -10,6 +11,7 @@ const {
 
 const {
   activeCalls,
+  activeCallId,
   getQueues,
   getQueuesById
 } = require('../services/xApi.js');
@@ -183,11 +185,57 @@ router.post('/', async function(req, res, next) {
   }
 });
 
+let globalToken = null;
+const activeCallQueue = [];
+const callStatusMap = new Map(); // 用於儲存每個 callid 的狀態
+
+setInterval(async () => {
+  console.log('每 3 秒檢查一次撥號狀態');
+  if (!globalToken) return;
+
+  try {
+    // 獲取目前活躍的撥號狀態
+    const activeCall = await activeCalls(globalToken);
+    // console.log('目前活躍的撥號狀態 : ', activeCall);
+
+    let matchingCallResult = []; // 儲存匹配的撥號物件
+
+    // 遍歷 activeCallQueue，檢查是否有匹配的 callId
+    for (let i = activeCallQueue.length - 1; i >= 0; i--) {
+      const queueItem = activeCallQueue[i];
+      const matchingCall = activeCall.value?.find(item => item.Id === queueItem.callid);
+
+      if (matchingCall) {
+        matchingCallResult.push({
+          requestId:queueItem.requestId,
+          phone: queueItem.phone,
+          projectId: queueItem.projectId,
+          activeCall: matchingCall,
+        });
+        
+      } else {
+        // console.log(`移除無匹配的 callId: ${queueItem.callid}`);
+        activeCallQueue.splice(i, 1); // 移除無匹配的項目
+      }
+    }
+
+    console.log('匹配的撥號物件:', matchingCallResult);
+    // 將匹配的撥號物件傳送給 WebSocket Server 的所有連線客戶端
+    clientWsV2.clients.forEach((client) => {
+      client.send(JSON.stringify(matchingCallResult));
+    });
+
+  } catch (error) {
+    console.error('Error while checking active calls:', error.message);
+  }
+}, 3000);
+
 // 特規的 outboundCampaigm API
 router.post('/v2', async function(req, res, next) {
-  const { grant_type, client_id, client_secret, phone } = req.body;
+  const requestId = uuidv4();
+  const { grant_type, client_id, client_secret, phone, projectId } = req.body;
 
-  if (!grant_type || !client_id || !client_secret || !phone) {
+  if (!grant_type || !client_id || !client_secret || !phone || !projectId) {
     return res.status(400).send('Missing required fields');
   }
   try {
@@ -218,61 +266,22 @@ router.post('/v2', async function(req, res, next) {
     }
 
     // 到這邊準備工作完成 可以開始撥打電話了
-    console.log(`撥打者 ${client_id} / 準備撥給 第 ${callGapTime} 手機`);
+    console.log(`撥打者 ${client_id} / 準備撥給 ${phone} 手機`);
     const currentCall = await makeCall(token, dn, device_id, 'outbound', phone);
+    console.log('撥打電話請求:', currentCall);
 
     // 撥打電話的時候 會回傳 一個 callid 我們可以利用這個 callid 來查詢當前的撥打狀態
     const { callid } = currentCall.result;
 
-    let callStatus = {}
-    // // 每 {callGapTime} 秒 檢查當前分機是否為空閒狀態
-    const batchChackCall = setInterval(async () => {
-      const activeCall = await activeCalls(token, callid);
-      
+    globalToken = token; // 儲存 token 以便後續使用
 
-      // 有了 callid 就可以查詢當前活躍呼叫的列表 有沒有這個 callid
-      const isAgentActive = activeCall.value.some(item => {
-        return item.Id === callid
-      });
-      // console.log('isAgentActive : ', isAgentActive);
-
-      if (!isAgentActive) {
-        console.log('當前分機為空閒狀態');
-        clearInterval(batchChackCall); // 停止定時器
-
-        // 將狀態傳送給 WebSocket Server 的所有連線客戶端
-        clientWsV2.clients.forEach((client) => {
-          client.send(JSON.stringify({
-            isCalling: false,
-            toCall: phone,
-            callStatus
-          }));
-        });
-        console.log('已停止撥打電話');
-        return
-      }
-
-      const getCallStatus = activeCall.value.find(item => item.Id === callid);
-      if (callStatus.Status !== getCallStatus.Status) {
-        callStatus = getCallStatus;
-        console.log('更新狀態 : ', callStatus);
-
-        // 將狀態傳送給 WebSocket Server 的所有連線客戶端
-        clientWsV2.clients.forEach((client) => {
-          client.send(JSON.stringify({
-            isCalling: true,
-            toCall: phone,
-            callStatus
-          }));
-        });
-      }
-      console.log('已抓到當前活躍呼叫的列表');
-      // console.log('當前活躍呼叫的列表 : ', activeCall);
-    }, 1000);
+    // // 將請求加入佇列
+    activeCallQueue.push({ token, callid, requestId, phone, projectId });
 
     res.status(200).send({
       message: 'Request outboundCampaigm successfully',
       token_3cx: token,
+      currentCall
     });
   } catch (error) {
     console.error('Error in POST /:', error.message);

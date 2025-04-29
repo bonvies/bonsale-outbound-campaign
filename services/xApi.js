@@ -4,7 +4,24 @@ require('dotenv').config();
 const host = process.env.HTTP_HOST_3CX;
 
 // 查詢當前活躍呼叫的列表
-async function activeCalls (token, callid) {
+async function activeCalls (token) {
+  try {
+    const response = await axios.get(`${host}/xapi/v1/ActiveCalls`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    // console.log('成功 獲取當前活躍呼叫的列表:', response.data);
+    // 回傳 API 的回應
+    return response.data;
+  } catch (error) {
+    console.error('Error activeCalls request:', error.message);
+    return new Error('Failed to activeCalls');
+  }
+};
+
+// 查詢當前活躍呼叫的列表
+async function activeCallId (token, callid) {
   try {
     const response = await axios.get(`${host}/xapi/v1/ActiveCalls?$filter=Id eq ${callid}`, {
       headers: {
@@ -15,8 +32,8 @@ async function activeCalls (token, callid) {
     // 回傳 API 的回應
     return response.data;
   } catch (error) {
-    console.error('Error ActiveCalls request:', error.message);
-    throw new Error('Failed to ActiveCalls');
+    console.error('Error ActiveCallId request:', error.message);
+    return new Error('Failed to ActiveCallId');
   }
 };
 
@@ -33,7 +50,7 @@ async function getQueues (token) {
     return response.data;
   } catch (error) {
     console.error('Error Queues request:', error.message);
-    throw new Error('Failed to Queues');
+    return new Error('Failed to Queues');
   }
 };
 
@@ -56,6 +73,7 @@ async function getQueuesById (token, id) {
 
 module.exports = {
   activeCalls,
+  activeCallId,
   getQueues,
   getQueuesById
 };
