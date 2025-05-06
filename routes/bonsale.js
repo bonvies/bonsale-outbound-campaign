@@ -42,4 +42,33 @@ router.get('/project', async function(req, res, next) {
   }
 });
 
+// Bonsale 回寫 callStatus
+router.put('/project/:projectId/customer/:customerId/callStatus', async function(req, res, next) {
+  const { projectId, customerId } = req.params; // 從路徑參數中取得 projectId 和 customerId
+  const { callStatus } = req.body; // 從請求主體中取得 callStatus
+  console.log('callStatus:', callStatus);
+  console.log('projectId:', projectId);
+  console.log('customerId:', customerId);
+
+  try {
+    // 發送 PUT 請求到 Bonsale API
+    const response = await axiosBonsaleInstance.put(
+      `${host}/project/${projectId}/customer/${customerId}/callStatus`,
+      { callStatus } // 傳遞 callStatus 作為請求主體
+    );
+
+    // 回傳 Bonsale API 的回應
+    return res.status(200).send(response.data);
+  } catch (error) {
+    console.error('Error in PUT /project/:projectId/customer/:customerId/callStatus:', error.message);
+
+    // 如果 Bonsale API 回傳錯誤，回傳錯誤訊息
+    if (error.response) {
+      return res.status(error.response.status).send(error.response.data);
+    }
+
+    return res.status(500).send({ error: 'Internal Server Error' });
+  }
+});
+
 module.exports = router;
