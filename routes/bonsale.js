@@ -42,6 +42,20 @@ router.get('/project', async function(req, res, next) {
   }
 });
 
+// 取得 outbound 外撥的人員資料
+router.get('/outbound', async function(req, res, next) {
+  try {
+    const queryString = new URLSearchParams(req.query).toString();
+    console.log(queryString)
+    const outboundResult = await axiosBonsaleInstance.get(`${host}/outbound?${queryString}`);
+    const outboundProject = outboundResult.data;
+    return res.status(200).send(outboundProject);
+  } catch (error) {
+    console.error('Error in GET /outbound:', error.message);
+    return res.status(500).send('Internal Server Error');
+  }
+});
+
 // Bonsale 回寫 callStatus
 router.put('/project/:projectId/customer/:customerId/callStatus', async function(req, res, next) {
   const { projectId, customerId } = req.params; // 從路徑參數中取得 projectId 和 customerId
@@ -61,6 +75,32 @@ router.put('/project/:projectId/customer/:customerId/callStatus', async function
     return res.status(200).send(response.data);
   } catch (error) {
     console.error('Error in PUT /project/:projectId/customer/:customerId/callStatus:', error.message);
+
+    // 如果 Bonsale API 回傳錯誤，回傳錯誤訊息
+    if (error.response) {
+      return res.status(error.response.status).send(error.response.data);
+    }
+
+    return res.status(500).send({ error: 'Internal Server Error' });
+  }
+});
+
+// Bonsale 回寫 dialUpdate
+router.put('/project/:projectId/customer/:customerId/dialUpdate', async function(req, res, next) {
+  const { projectId, customerId } = req.params; // 從路徑參數中取得 projectId 和 customerId
+  console.log('projectId:', projectId);
+  console.log('customerId:', customerId);
+
+  try {
+    // 發送 PUT 請求到 Bonsale API
+    const response = await axiosBonsaleInstance.put(
+      `${host}/project/${projectId}/customer/${customerId}/dialUpdate`
+    );
+
+    // 回傳 Bonsale API 的回應
+    return res.status(200).send(response.data);
+  } catch (error) {
+    console.error('Error in PUT /project/:projectId/customer/:customerId/dialUpdate:', error.message);
 
     // 如果 Bonsale API 回傳錯誤，回傳錯誤訊息
     if (error.response) {
