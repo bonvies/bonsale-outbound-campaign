@@ -1,4 +1,4 @@
-FROM node:14
+FROM node:16
 
 # Set the working directory
 WORKDIR /app
@@ -15,8 +15,11 @@ COPY . .
 # Expose the port the app runs on (REST API)
 EXPOSE 3020
 
-# Expose the WebSocket server port
+# Expose the outboundCampaigm WebSocket server port
 EXPOSE 3021
+
+# Expose the projectOutbound WebSocket server port
+EXPOSE 3022
 
 # Command to run the application
 CMD ["node", "./bin/www"]
