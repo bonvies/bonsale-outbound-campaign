@@ -21,8 +21,8 @@ The application uses the following environment variables. These should be define
 Below is an example of how the `.env` file should look:
 
 ```env
-HTTP_HOST_3CX=https://bonuc.3cx.com.tw
-WS_HOST_3CX=wss://bonuc.3cx.com.tw
+HTTP_HOST_3CX=https://<YOUR 3CX DOMAIN>
+WS_HOST_3CX=wss://<YOUR 3CX DOMAIN>
 CALL_GAP_TIME=3
 HTTP_PORT=3020
 WS_PORT_OUTBOUND_CAMPAIGM=3021
