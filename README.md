@@ -6,15 +6,15 @@ The application uses the following environment variables. These should be define
 
 | Variable Name                  | Default Value                                      | Description                                  |
 |--------------------------------|---------------------------------------------------|-----------------------------------------------|
-| `HTTP_HOST_3CX`                | `https://bonuc.3cx.com.tw`                        | The host URL for the 3CX HTTP API.            |
-| `WS_HOST_3CX`                  | `wss://bonuc.3cx.com.tw`                          | The host URL for the 3CX WebSocket API.       |
+| `HTTP_HOST_3CX`                | `https://<YOUR 3CX DOMAIN>`                        | The host URL for the 3CX HTTP API.            |
+| `WS_HOST_3CX`                  | `wss://<YOUR 3CX DOMAIN>`                          | The host URL for the 3CX WebSocket API.       |
 | `CALL_GAP_TIME`                | `3`                                               | The time gap (in seconds) between calls.      |
 | `HTTP_PORT`                    | `3020`                                            | The port for the HTTP server.                 |
 | `WS_PORT_OUTBOUND_CAMPAIGM`    | `3021`                                            | The port for the WebSocket server.            |
 | `WS_PORT_OUTBOUND_CAMPAIGM_V2` | `3022`                                            | The port for the second WebSocket server.     |
-| `BONSALE_HOST`                 | `https://telesale-drvet-beta-api-nygimqgkxq-de.a.run.app/service` | The host URL for the Bonsale API. |
-| `BONSALE_X_API_KEY`            | ``                                | The API key for the Bonsale API.              |
-| `BONSALE_X_API_SECRET`         | ``                                | The API secret for the Bonsale API.           |
+| `BONSALE_HOST`                 | `https://<YOUR BONSALE_HOST>/service` | The host URL for the Bonsale API. |
+| `BONSALE_X_API_KEY`            | `YOUR X_API_KEY`                                | The API key for the Bonsale API.              |
+| `BONSALE_X_API_SECRET`         | `YOUR X_API_SECRET`                                | The API secret for the Bonsale API.           |
 
 ### Example `.env` File
 
