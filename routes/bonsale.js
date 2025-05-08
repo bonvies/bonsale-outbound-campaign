@@ -111,4 +111,56 @@ router.put('/project/:projectId/customer/:customerId/dialUpdate', async function
   }
 });
 
+// Bonsale 取得 訪談紀錄 /project/customer/visit
+router.get('/project/customer/visit', async function(req, res, next) {
+  try {
+    const queryString = new URLSearchParams(req.query).toString();
+    console.log(queryString)
+    const response = await axiosBonsaleInstance.get(
+      `${host}/project/customer/visit?${queryString}`,
+    )
+
+    // 回傳 Bonsale API 的回應
+    return res.status(200).send(response.data);
+  } catch (error) {
+    console.error('Error in GET /project/customer/visit:', error.message);
+
+    // 如果 Bonsale API 回傳錯誤，回傳錯誤訊息
+    if (error.response) {
+      return res.status(error.response.status).send(error.response.data);
+    }
+
+    return res.status(500).send({ error: 'Internal Server Error' });
+  }
+});
+
+// Bonsale 回寫 訪談紀錄 /project/customer/visit
+router.post('/project/customer/visit', async function(req, res, next) {
+  const {projectId, customerId, visitType, visitedUsername, visitedAt, description, visitedResult, task } = req.body;
+
+  if (!projectId || !customerId || !visitType || !visitedUsername || !visitedAt || !description || !visitedResult) {
+    return res.status(400).send('Missing required fields');
+  };
+
+  try {
+    // 發送 PUT 請求到 Bonsale API
+    const response = await axiosBonsaleInstance.post(
+      `${host}/project/customer/visit`,
+      { projectId, customerId, visitType, visitedUsername, visitedAt, description, visitedResult, task }
+    );
+
+    // 回傳 Bonsale API 的回應
+    return res.status(200).send(response.data);
+  } catch (error) {
+    console.error('Error in POST /project/customer/visit:', error.message);
+
+    // 如果 Bonsale API 回傳錯誤，回傳錯誤訊息
+    if (error.response) {
+      return res.status(error.response.status).send(error.response.data);
+    }
+
+    return res.status(500).send({ error: 'Internal Server Error' });
+  }
+});
+
 module.exports = router;
