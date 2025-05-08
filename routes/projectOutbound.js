@@ -30,7 +30,6 @@ clientWsV2.on('connection', (ws) => {
 
 let globalToken = null;
 const activeCallQueue = [];
-const callStatusMap = new Map(); // 用於儲存每個 callid 的狀態
 
 setInterval(async () => {
   console.log('每 3 秒檢查一次撥號狀態');
@@ -53,6 +52,7 @@ setInterval(async () => {
           requestId:queueItem.requestId,
           phone: queueItem.phone,
           projectId: queueItem.projectId,
+          customerId: queueItem.customerId,
           activeCall: matchingCall,
         });
         
@@ -76,9 +76,10 @@ setInterval(async () => {
 // 特規的 outboundCampaigm API
 router.post('/', async function(req, res, next) {
   const requestId = uuidv4();
-  const { grant_type, client_id, client_secret, phone, projectId } = req.body;
+  const { grant_type, client_id, client_secret, phone, projectId, customerId } = req.body;
 
-  if (!grant_type || !client_id || !client_secret || !phone || !projectId) {
+  if (!grant_type || !client_id || !client_secret || !phone || !projectId || !customerId) {
+    console.error('Missing required fields');
     return res.status(400).send('Missing required fields');
   }
   try {
@@ -119,7 +120,7 @@ router.post('/', async function(req, res, next) {
     globalToken = token; // 儲存 token 以便後續使用
 
     // // 將請求加入佇列
-    activeCallQueue.push({ token, callid, requestId, phone, projectId });
+    activeCallQueue.push({ token, callid, requestId, phone, projectId, customerId });
 
     res.status(200).send({
       message: 'Request outboundCampaigm successfully',
