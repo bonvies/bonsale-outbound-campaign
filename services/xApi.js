@@ -16,7 +16,7 @@ async function activeCalls (token) {
     return response.data;
   } catch (error) {
     console.error('Error activeCalls request:', error.message);
-    return new Error('Failed to activeCalls');
+    return error
   }
 };
 
@@ -33,7 +33,7 @@ async function activeCallId (token, callid) {
     return response.data;
   } catch (error) {
     console.error('Error ActiveCallId request:', error.message);
-    return new Error('Failed to ActiveCallId');
+    return error
   }
 };
 
@@ -50,7 +50,7 @@ async function getQueues (token) {
     return response.data;
   } catch (error) {
     console.error('Error Queues request:', error.message);
-    return new Error('Failed to Queues');
+    return error
   }
 };
 
@@ -67,7 +67,7 @@ async function getQueuesById (token, id) {
     return response.data;
   } catch (error) {
     console.error('Error Queues request:', error.message);
-    throw new Error('Failed to Queues');
+    throw error
   }
 };
 

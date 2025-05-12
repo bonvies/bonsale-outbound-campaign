@@ -18,10 +18,10 @@ async function get3cxToken (grant_type, client_id, client_secret) {
     });
 
     // console.log('取得 3CX token 成功:', response.data.access_token);
-    return response.data;
+    return { success: true, data: response.data }; // 返回成功的 token
   } catch (error) {
     console.error('Error get3cxToken request:', error.message);
-    return error
+    return { success: false, error: { status: error.status, message: `Error get3cxToken request: ${error.message}` } }; // 返回错误
   }
 };
 
@@ -72,13 +72,12 @@ async function getCaller (token) {
     });
     const caller = response.data.find(item => item.type === 'Wqueue');
     if (!caller) {
-      throw new Error('Caller not found');
+      return { success: false, error: { status: 404, message: 'Error getCaller request: Caller type Wqueue not found' } }; // 返回错误
     }
-
-    return caller;
+    return { success: true, data: caller }; // 返回成功的 token
   } catch (error) {
     console.error('Error getCaller request:', error.message);
-    return error
+    return { success: false, error: { status: error.status, message: `Error getCaller request: ${error.message}` } }; // 返回错误
   } 
 };
 

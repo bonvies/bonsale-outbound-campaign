@@ -141,12 +141,14 @@ router.post('/', async function(req, res, next) {
   try {
     // 先取得 3CX token 
     const token_3cx = await get3cxToken(grant_type, client_id, client_secret);
-    const token = token_3cx.access_token; // 取得 access_token
+    if (!token_3cx.success) return res.status(token_3cx.error.status).send(token_3cx.error); // 錯誤處理
+    const token = token_3cx.data.access_token; // 取得 access_token
     // console.log(token);
 
     // 取得 撥號分機資訊 (需要設定 queue)
     const caller = await getCaller(token); // 取得撥號者
-    const { dn, device_id } = caller.devices[0]; // TODO 這邊我只有取第一台設備資訊
+    if (!caller.success) return res.status(caller.error.status).send(caller.error); // 錯誤處理
+    const { dn, device_id } = caller.data.devices[0]; // 這邊我只有取第一台設備資訊
 
     // 建立 WebSocket 連線
     try {
