@@ -10,8 +10,6 @@ const {
 
 const {
   activeCalls,
-  getQueues,
-  getQueuesById
 } = require('../services/xApi.js');
 
 require('dotenv').config();
@@ -37,7 +35,9 @@ setInterval(async () => {
 
   try {
     // 獲取目前活躍的撥號狀態
-    const activeCall = await activeCalls(globalToken);
+    const fetch_getActiveCalls = await activeCalls(globalToken);
+    if (!fetch_getActiveCalls.success) return res.status(fetch_getActiveCalls.error.status).send(fetch_getActiveCalls.error); // 錯誤處理
+    const activeCall = fetch_getActiveCalls.data;
     // console.log('目前活躍的撥號狀態 : ', activeCall);
 
     let matchingCallResult = []; // 儲存匹配的撥號物件

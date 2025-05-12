@@ -13,10 +13,10 @@ async function activeCalls (token) {
     });
     // console.log('成功 獲取當前活躍呼叫的列表:', response.data);
     // 回傳 API 的回應
-    return response.data;
+    return { success: true, data: response.data }; // 返回成功
   } catch (error) {
     console.error('Error activeCalls request:', error.message);
-    return error
+    return { success: false, error: { status: error.status, message: `Error activeCalls request: ${error.message}` } }; // 返回錯誤
   }
 };
 
@@ -30,10 +30,10 @@ async function activeCallId (token, callid) {
     });
     // console.log('成功 獲取當前活躍呼叫的列表:', response.data);
     // 回傳 API 的回應
-    return response.data;
+    return { success: true, data: response.data }; // 返回成功
   } catch (error) {
-    console.error('Error ActiveCallId request:', error.message);
-    return error
+    console.error('Error activeCallId request:', error.message);
+    return { success: false, error: { status: error.status, message: `Error activeCallId request: ${error.message}` } }; // 返回錯誤
   }
 };
 
@@ -47,10 +47,10 @@ async function getQueues (token) {
     });
     // console.log('成功 獲取當前 Queues 的列表:', response.data);
     // 回傳 API 的回應
-    return { success: true, data: response.data }; // 返回成功的 queues
+    return { success: true, data: response.data }; // 返回成功
   } catch (error) {
     console.error('Error Queues request:', error.message);
-    return { success: false, error: { status: error.status, message: `Error getQueues request: ${error.message}` } }; // 返回错误
+    return { success: false, error: { status: error.status, message: `Error getQueues request: ${error.message}` } }; // 返回錯誤
   }
 };
 
@@ -67,7 +67,7 @@ async function getQueuesById (token, id) {
     return { success: true, data: response.data }; // 返回成功
   } catch (error) {
     console.error('Error getQueuesById request:', error.message);
-    return { success: false, error: { status: error.status, message: `Error getQueuesById request: ${error.message}` } }; // 返回错误
+    return { success: false, error: { status: error.status, message: `Error getQueuesById request: ${error.message}` } }; // 返回錯誤
   }
 };
 
