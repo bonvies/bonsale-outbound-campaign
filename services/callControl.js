@@ -18,10 +18,10 @@ async function get3cxToken (grant_type, client_id, client_secret) {
     });
 
     // console.log('取得 3CX token 成功:', response.data.access_token);
-    return response.data.access_token;
+    return response.data;
   } catch (error) {
     console.error('Error get3cxToken request:', error.message);
-    throw new Error('Failed to fetch token');
+    return error
   }
 };
 
@@ -42,7 +42,7 @@ async function makeCall (token, dn, device_id, reason, destination, timeout = 30
     return response.data;
   } catch (error) {
     console.error('Error makeCall request:', error.message);
-    throw new Error('Failed to makecall');
+    return error
   }
 };
 
@@ -78,7 +78,7 @@ async function getCaller (token) {
     return caller;
   } catch (error) {
     console.error('Error getCaller request:', error.message);
-    throw new Error('Failed to getCaller data');
+    return error
   } 
 };
 
@@ -93,7 +93,7 @@ async function getParticipants (token, dn) {
     return response.data;
   } catch (error) {
     console.error('Error getParticipants request:', error.message);
-    throw new Error('Failed to get participants');
+    return error
   }
 };
 

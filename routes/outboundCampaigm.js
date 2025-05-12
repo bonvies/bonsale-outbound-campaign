@@ -140,7 +140,8 @@ router.post('/', async function(req, res, next) {
   }
   try {
     // 先取得 3CX token 
-    const token = await get3cxToken(grant_type, client_id, client_secret);
+    const token_3cx = await get3cxToken(grant_type, client_id, client_secret);
+    const token = token_3cx.access_token; // 取得 access_token
     // console.log(token);
 
     // 取得 撥號分機資訊 (需要設定 queue)
