@@ -49,7 +49,7 @@ setInterval(async () => {
 
       if (matchingCall) {
         matchingCallResult.push({
-          requestId:queueItem.requestId,
+          id:queueItem.id,
           phone: queueItem.phone,
           projectId: queueItem.projectId,
           customerId: queueItem.customerId,
@@ -73,9 +73,9 @@ setInterval(async () => {
   }
 }, 3000);
 
-// 特規的 outboundCampaigm API
+// projectOutbound API
 router.post('/', async function(req, res, next) {
-  const requestId = uuidv4();
+  const id = uuidv4();
   const { grant_type, client_id, client_secret, phone, projectId, customerId } = req.body;
 
   if (!grant_type || !client_id || !client_secret || !phone || !projectId || !customerId) {
@@ -87,7 +87,7 @@ router.post('/', async function(req, res, next) {
     const fetch_get3cxToken = await get3cxToken(grant_type, client_id, client_secret);
     if (!fetch_get3cxToken.success) return res.status(fetch_get3cxToken.error.status).send(fetch_get3cxToken.error); // 錯誤處理
     const token = fetch_get3cxToken.data?.access_token; // 取得 access_token
-    // console.log(token);
+    console.log(token);
 
     // 取得 撥號分機資訊 (需要設定 queue)
     const fetch_getCaller = await getCaller(token); // 取得撥號者
@@ -109,7 +109,7 @@ router.post('/', async function(req, res, next) {
     globalToken = token; // 儲存 token 以便後續使用
 
     // // 將請求加入佇列
-    activeCallQueue.push({ token, callid, requestId, phone, projectId, customerId });
+    activeCallQueue.push({ token, callid, id, phone, projectId, customerId });
 
     res.status(200).send({
       message: 'Request outboundCampaigm successfully',
