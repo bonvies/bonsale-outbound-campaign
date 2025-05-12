@@ -95,43 +95,43 @@ router.post('/', async function(req, res, next) {
     const { dn, device_id } = caller.data.devices[0]; // 這邊我只有取第一台設備資訊
     // console.log('撥打者資訊 : ', caller);
 
-    // 查找 Queue 中有沒有 caller 的分機
-    const queueList = await getQueues(token);
-    if (!queueList.success) return res.status(queueList.error.status).send(queueList.error); // 錯誤處理
-    const queue = (queueList.data.value.find(item => item.Number === dn));
-    console.log('Queue : ', queue);
-    if (!queue.Id) {
-      console.error('Queue ID not found for the caller');
-      return res.status(404).send('Queue ID not found for the caller');
-    }
+    // // 查找 Queue 中有沒有 caller 的分機
+    // const queueList = await getQueues(token);
+    // if (!queueList.success) return res.status(queueList.error.status).send(queueList.error); // 錯誤處理
+    // const queue = (queueList.data.value.find(item => item.Number === dn));
     // console.log('Queue : ', queue);
+    // if (!queue.Id) {
+    //   console.error('Queue ID not found for the caller');
+    //   return res.status(404).send('Queue ID not found for the caller');
+    // }
+    // // console.log('Queue : ', queue);
 
-    // 有了 queueId 就可以找到 該 dn 分機 指派了哪些電話號碼
-    const queuePhonesById = await getQueuesById(token, queue.Id);
-    if (!queuePhonesById.success) return res.status(queuePhonesById.error.status).send(queuePhonesById.error); // 錯誤處理
-    const queuePhones = queuePhonesById.data;
-    if(!queuePhones) {
-      console.error('Queue Phones not found for the caller');
-      return res.status(404).send('Queue Phones not found for the caller');
-    }
+    // // 有了 queueId 就可以找到 該 dn 分機 指派了哪些電話號碼
+    // const queuePhonesById = await getQueuesById(token, queue.Id);
+    // if (!queuePhonesById.success) return res.status(queuePhonesById.error.status).send(queuePhonesById.error); // 錯誤處理
+    // const queuePhones = queuePhonesById.data;
+    // if(!queuePhones) {
+    //   console.error('Queue Phones not found for the caller');
+    //   return res.status(404).send('Queue Phones not found for the caller');
+    // }
 
-    // // 到這邊準備工作完成 可以開始撥打電話了
-    // console.log(`撥打者 ${client_id} / 準備撥給 ${phone} 手機`);
-    // const currentCall = await makeCall(token, dn, device_id, 'outbound', phone);
-    // console.log('撥打電話請求:', currentCall);
+    // 到這邊準備工作完成 可以開始撥打電話了
+    console.log(`撥打者 ${client_id} / 準備撥給 ${phone} 手機`);
+    const currentCall = await makeCall(token, dn, device_id, 'outbound', phone);
+    console.log('撥打電話請求:', currentCall);
 
-    // // 撥打電話的時候 會回傳 一個 callid 我們可以利用這個 callid 來查詢當前的撥打狀態
-    // const { callid } = currentCall.result;
+    // 撥打電話的時候 會回傳 一個 callid 我們可以利用這個 callid 來查詢當前的撥打狀態
+    const { callid } = currentCall.result;
 
-    // globalToken = token; // 儲存 token 以便後續使用
+    globalToken = token; // 儲存 token 以便後續使用
 
-    // // // 將請求加入佇列
-    // activeCallQueue.push({ token, callid, requestId, phone, projectId, customerId });
+    // // 將請求加入佇列
+    activeCallQueue.push({ token, callid, requestId, phone, projectId, customerId });
 
     res.status(200).send({
       message: 'Request outboundCampaigm successfully',
       token_3cx: token,
-      // currentCall
+      currentCall
     });
   } catch (error) {
     console.error('Error in POST /:', error);
