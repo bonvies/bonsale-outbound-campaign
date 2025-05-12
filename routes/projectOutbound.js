@@ -84,36 +84,17 @@ router.post('/', async function(req, res, next) {
   }
   try {
     // 先取得 3CX token 
-    const token_3cx = await get3cxToken(grant_type, client_id, client_secret);
-    if (!token_3cx.success) return res.status(token_3cx.error.status).send(token_3cx.error); // 錯誤處理
-    const token = token_3cx.data.access_token; // 取得 access_token
+    const fetch_get3cxToken = await get3cxToken(grant_type, client_id, client_secret);
+    if (!fetch_get3cxToken.success) return res.status(fetch_get3cxToken.error.status).send(fetch_get3cxToken.error); // 錯誤處理
+    const token = fetch_get3cxToken.data?.access_token; // 取得 access_token
     // console.log(token);
 
     // 取得 撥號分機資訊 (需要設定 queue)
-    const caller = await getCaller(token); // 取得撥號者
-    if (!caller.success) return res.status(caller.error.status).send(caller.error); // 錯誤處理
-    const { dn, device_id } = caller.data.devices[0]; // 這邊我只有取第一台設備資訊
+    const fetch_getCaller = await getCaller(token); // 取得撥號者
+    if (!fetch_getCaller.success) return res.status(fetch_getCaller.error.status).send(fetch_getCaller.error); // 錯誤處理
+    const caller = fetch_getCaller.data
+    const { dn, device_id } = caller.devices[0]; // 這邊我只有取第一台設備資訊
     // console.log('撥打者資訊 : ', caller);
-
-    // // 查找 Queue 中有沒有 caller 的分機
-    // const queueList = await getQueues(token);
-    // if (!queueList.success) return res.status(queueList.error.status).send(queueList.error); // 錯誤處理
-    // const queue = (queueList.data.value.find(item => item.Number === dn));
-    // console.log('Queue : ', queue);
-    // if (!queue.Id) {
-    //   console.error('Queue ID not found for the caller');
-    //   return res.status(404).send('Queue ID not found for the caller');
-    // }
-    // // console.log('Queue : ', queue);
-
-    // // 有了 queueId 就可以找到 該 dn 分機 指派了哪些電話號碼
-    // const queuePhonesById = await getQueuesById(token, queue.Id);
-    // if (!queuePhonesById.success) return res.status(queuePhonesById.error.status).send(queuePhonesById.error); // 錯誤處理
-    // const queuePhones = queuePhonesById.data;
-    // if(!queuePhones) {
-    //   console.error('Queue Phones not found for the caller');
-    //   return res.status(404).send('Queue Phones not found for the caller');
-    // }
 
     // 到這邊準備工作完成 可以開始撥打電話了
     console.log(`撥打者 ${client_id} / 準備撥給 ${phone} 手機`);

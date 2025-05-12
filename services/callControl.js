@@ -18,10 +18,10 @@ async function get3cxToken (grant_type, client_id, client_secret) {
     });
 
     // console.log('取得 3CX token 成功:', response.data.access_token);
-    return { success: true, data: response.data }; // 返回成功的 token
+    return { success: true, data: response.data }; // 返回成功
   } catch (error) {
     console.error('Error get3cxToken request:', error.message);
-    return { success: false, error: { status: error.status, message: `Error get3cxToken request: ${error.message}` } }; // 返回错误
+    return { success: false, error: { status: error.status, message: `Error get3cxToken request: ${error.message}` } }; // 返回錯誤
   }
 };
 
@@ -39,10 +39,10 @@ async function makeCall (token, dn, device_id, reason, destination, timeout = 30
     });
     // 回傳 API 的回應
     // console.log('成功 撥打電話請求:', response.data);
-    return response.data;
+    return { success: true, data: response.data }; // 返回成功
   } catch (error) {
     console.error('Error makeCall request:', error.message);
-    return error
+    return { success: false, error: { status: error.status, message: `Error makeCall request: ${error.message}` } }; // 返回錯誤
   }
 };
 
