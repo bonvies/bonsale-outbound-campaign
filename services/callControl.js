@@ -72,7 +72,7 @@ async function getCaller (token) {
     });
     const caller = response.data.find(item => item.type === 'Wqueue');
     if (!caller) {
-      return { success: false, error: { status: 404, message: 'Error getCaller request: Caller type Wqueue not found' } }; // 返回错误
+      return { success: false, error: { status: 404, message: 'Caller type Wqueue not found' } }; // 返回错误
     }
     return { success: true, data: caller }; // 返回成功的 token
   } catch (error) {

@@ -93,24 +93,27 @@ router.post('/', async function(req, res, next) {
     const caller = await getCaller(token); // 取得撥號者
     if (!caller.success) return res.status(caller.error.status).send(caller.error); // 錯誤處理
     const { dn, device_id } = caller.data.devices[0]; // 這邊我只有取第一台設備資訊
+    // console.log('撥打者資訊 : ', caller);
 
-    // // console.log('撥打者資訊 : ', caller);
+    // 查找 Queue 中有沒有 caller 的分機
+    const queueList = await getQueues(token);
+    if (!queueList.success) return res.status(queueList.error.status).send(queueList.error); // 錯誤處理
+    const queue = (queueList.data.value.find(item => item.Number === dn));
+    console.log('Queue : ', queue);
+    if (!queue.Id) {
+      console.error('Queue ID not found for the caller');
+      return res.status(404).send('Queue ID not found for the caller');
+    }
+    // console.log('Queue : ', queue);
 
-    // // 查找 Queue 中有沒有 caller 的分機
-    // const queueList = await getQueues(token, dn);
-    // const queue = (queueList.value.find(item => item.Number === dn));
-    // if (!queue.Id) {
-    //   console.error('Queue ID not found for the caller');
-    //   return res.status(400).send('Queue ID not found for the caller');
-    // }
-    // // console.log('Queue : ', queue);
-
-    // // 有了 queueId 就可以找到 該 dn 分機 指派了哪些電話號碼
-    // const queuePhones = await getQueuesById(token, queue.Id);
-    // if(!queuePhones) {
-    //   console.error('Queue Phones not found for the caller');
-    //   return res.status(400).send('Queue Phones not found for the caller');
-    // }
+    // 有了 queueId 就可以找到 該 dn 分機 指派了哪些電話號碼
+    const queuePhonesById = await getQueuesById(token, queue.Id);
+    if (!queuePhonesById.success) return res.status(queuePhonesById.error.status).send(queuePhonesById.error); // 錯誤處理
+    const queuePhones = queuePhonesById.data;
+    if(!queuePhones) {
+      console.error('Queue Phones not found for the caller');
+      return res.status(404).send('Queue Phones not found for the caller');
+    }
 
     // // 到這邊準備工作完成 可以開始撥打電話了
     // console.log(`撥打者 ${client_id} / 準備撥給 ${phone} 手機`);
