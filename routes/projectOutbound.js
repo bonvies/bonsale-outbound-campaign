@@ -98,7 +98,9 @@ router.post('/', async function(req, res, next) {
 
     // 到這邊準備工作完成 可以開始撥打電話了
     console.log(`撥打者 ${client_id} / 準備撥給 ${phone} 手機`);
-    const currentCall = await makeCall(token, dn, device_id, 'outbound', phone);
+    const fetch_makeCall = await makeCall(token, dn, device_id, 'outbound', phone);
+    if (!fetch_makeCall.success) return res.status(fetch_makeCall.error.status).send(fetch_makeCall.error); // 錯誤處理
+    const currentCall = fetch_makeCall.data;
     console.log('撥打電話請求:', currentCall);
 
     // 撥打電話的時候 會回傳 一個 callid 我們可以利用這個 callid 來查詢當前的撥打狀態

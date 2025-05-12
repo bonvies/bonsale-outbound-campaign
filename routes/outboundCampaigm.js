@@ -43,7 +43,10 @@ function createWs (token, phones, dn, device_id, caller, client_id) {
       // 進行初次撥打電話
       const phoneNumbersArray = phones.split(',');
       console.log(`撥打者 ${client_id} / 準備撥給 第 ${nowCall + 1} 隻手機: ${phoneNumbersArray[nowCall]}`);
-      await makeCall(token, dn, device_id, 'outbound', phoneNumbersArray[0]);
+      const fetch_makeCall = await makeCall(token, dn, device_id, 'outbound', phone);
+      if (!fetch_makeCall.success) return res.status(fetch_makeCall.error.status).send(fetch_makeCall.error); // 錯誤處理
+      const currentCall = fetch_makeCall.data;
+      console.log('撥打電話請求:', currentCall);
     });
 
     ws.on('message', async function message(data) {
@@ -104,7 +107,10 @@ function createWs (token, phones, dn, device_id, caller, client_id) {
             // 等待 ${callGapTime} 秒後撥打下一個電話
             setTimeout(async () => {
               console.log(`撥打者 ${client_id} / 準備撥給 第 ${nowCall} 手機: ${phoneNumbersArray[nowCall]}`);
-              await makeCall(token, dn, device_id, 'outbound', phoneNumbersArray[nowCall]);
+              const fetch_makeCall = await makeCall(token, dn, device_id, 'outbound', phone);
+              if (!fetch_makeCall.success) return res.status(fetch_makeCall.error.status).send(fetch_makeCall.error); // 錯誤處理
+              const currentCall = fetch_makeCall.data;
+              console.log('撥打電話請求:', currentCall);
             }, callGapTime * 1000); // 轉換為毫秒
           }
         }
