@@ -31,7 +31,12 @@ const activeCallQueue = [];
 
 setInterval(async () => {
   console.log('每 3 秒檢查一次撥號狀態');
-  if (!globalToken) return;
+  if (!globalToken) { // 如果沒有 token 就回傳給所有客戶端一個空陣列
+    clientWsV2.clients.forEach((client) => {
+      client.send(JSON.stringify([]));
+    });
+    return;
+  };
 
   try {
     // 獲取目前活躍的撥號狀態
