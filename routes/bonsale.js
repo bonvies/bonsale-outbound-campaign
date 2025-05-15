@@ -18,7 +18,8 @@ const axiosBonsaleInstance = axios.create({
 // 取得 Bonsale 外撥專案
 router.get('/auto-dial', async function(req, res, next) {
   try {
-    const queryString = new URLSearchParams(req.query).toString();
+    const queryString = new URLSearchParams(req.query).toString().replace(/%2B/g, '+'); // 將 %2B 替換為 + 因為 Bonsale 的 sort query API 格式會像這樣 created_at+desc 但 new URLSearchParams 會將 + 編碼成 %2B 導致無法正確查詢
+    console.log(req.query)
     const autoDialData = await axiosBonsaleInstance.get(`${host}/project/auto-dial?${queryString}`);
     const autoDialProject = autoDialData.data;
     return res.status(200).send(autoDialProject);
