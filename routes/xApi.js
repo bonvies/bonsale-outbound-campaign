@@ -16,7 +16,7 @@ router.get('/activeCalls', async function(req, res, next) {
     return res.status(200).send(result);
   } catch (error) {
     console.error('Error in POST /activeCalls:', error.message);
-    return res.status(500).send('Internal Server Error');
+    return res.status(error.status).send(`Error in POST /activeCalls: ${error.message}`);
   }
 });
 

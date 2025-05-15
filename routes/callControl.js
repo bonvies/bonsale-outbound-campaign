@@ -19,7 +19,7 @@ router.post('/makeCall', async function(req, res, next) {
     res.status(200).send('Request makeCall successfully');
   } catch (error) {
     console.error('Error in POST /makeCall:', error.message);
-    return res.status(500).send('Internal Server Error');
+    return res.status(error.status).send(`Error in POST /makeCall: ${error.message}`);
   }
 });
 
@@ -35,7 +35,7 @@ router.post('/hangup', async function(req, res, next) {
     res.status(200).send('Request hangup successfully');
   } catch (error) {
     console.error('Error in POST /hangup:', error.message);
-    return res.status(500).send('Internal Server Error');
+    return res.status(error.status).send(`Error in POST /hangup: ${error.message}`);
   }
 });
 

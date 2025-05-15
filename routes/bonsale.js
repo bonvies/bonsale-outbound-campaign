@@ -23,8 +23,8 @@ router.get('/auto-dial', async function(req, res, next) {
     const autoDialProject = autoDialData.data;
     return res.status(200).send(autoDialProject);
   } catch (error) {
-    console.error('Error in POST /hangup:', error.message);
-    return res.status(500).send('Internal Server Error');
+    console.error('Error in GET /auto-dial:', error.message);
+    return res.status(error.status).send(`Error in GET /auto-dial: ${error.message}`);
   }
 });
 
@@ -37,8 +37,8 @@ router.get('/project', async function(req, res, next) {
     const autoDialProject = autoDialData.data;
     return res.status(200).send(autoDialProject);
   } catch (error) {
-    console.error('Error in POST /hangup:', error.message);
-    return res.status(500).send('Internal Server Error');
+    console.error('Error in GET /project:', error.message);
+    return res.status(error.status).send(`Error in GET /project: ${error.message}`);
   }
 });
 
@@ -52,7 +52,7 @@ router.get('/outbound', async function(req, res, next) {
     return res.status(200).send(outboundProject);
   } catch (error) {
     console.error('Error in GET /outbound:', error.message);
-    return res.status(500).send('Internal Server Error');
+    return res.status(error.status).send(`Error in GET /outbound: ${error.message}`);
   }
 });
 
@@ -75,13 +75,7 @@ router.put('/project/:projectId/customer/:customerId/callStatus', async function
     return res.status(200).send(response.data);
   } catch (error) {
     console.error('Error in PUT /project/:projectId/customer/:customerId/callStatus:', error.message);
-
-    // 如果 Bonsale API 回傳錯誤，回傳錯誤訊息
-    if (error.response) {
-      return res.status(error.response.status).send(error.response.data);
-    }
-
-    return res.status(500).send({ error: 'Internal Server Error' });
+    return res.status(error.status).send(`Error in PUT /project/:projectId/customer/:customerId/callStatus: ${error.message}`);
   }
 });
 
@@ -101,13 +95,7 @@ router.put('/project/:projectId/customer/:customerId/dialUpdate', async function
     return res.status(200).send(response.data);
   } catch (error) {
     console.error('Error in PUT /project/:projectId/customer/:customerId/dialUpdate:', error.message);
-
-    // 如果 Bonsale API 回傳錯誤，回傳錯誤訊息
-    if (error.response) {
-      return res.status(error.response.status).send(error.response.data);
-    }
-
-    return res.status(500).send({ error: 'Internal Server Error' });
+    return res.status(error.status).send(`Error in PUT /outbound: ${error.message}`);
   }
 });
 
@@ -124,13 +112,7 @@ router.get('/project/customer/visit', async function(req, res, next) {
     return res.status(200).send(response.data);
   } catch (error) {
     console.error('Error in GET /project/customer/visit:', error.message);
-
-    // 如果 Bonsale API 回傳錯誤，回傳錯誤訊息
-    if (error.response) {
-      return res.status(error.response.status).send(error.response.data);
-    }
-
-    return res.status(500).send({ error: 'Internal Server Error' });
+    return res.status(error.status).send(`Error in GET /project/customer/visit: ${error.message}`);
   }
 });
 
@@ -153,13 +135,7 @@ router.post('/project/customer/visit', async function(req, res, next) {
     return res.status(200).send(response.data);
   } catch (error) {
     console.error('Error in POST /project/customer/visit:', error.message);
-
-    // 如果 Bonsale API 回傳錯誤，回傳錯誤訊息
-    if (error.response) {
-      return res.status(error.response.status).send(error.response.data);
-    }
-
-    return res.status(500).send({ error: 'Internal Server Error' });
+    return res.status(error.status).send(`Error in POST /project/customer/visit: ${error.message}`);
   }
 });
 

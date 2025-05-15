@@ -122,9 +122,8 @@ router.post('/', async function(req, res, next) {
       currentCall
     });
   } catch (error) {
-    console.error('Error in POST /:', error);
-    // console.error('Error in POST /:', error.message);
-    res.status(500).send('Internal Server Error');
+    console.error('Error in POST /projectOutbound:', error);
+    res.status(error.status).send(`Error in POST /projectOutbound: ${error.message}`);
   }
 });
 
