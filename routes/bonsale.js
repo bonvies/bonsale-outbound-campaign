@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
+const e = require('express');
 require('dotenv').config();
 
 const host = process.env.BONSALE_HOST;
@@ -14,6 +15,8 @@ const axiosBonsaleInstance = axios.create({
     'X-API-SECRET': xApiSecret,
   },
 });
+
+// TODO 建立一個 /WebHook 端點 來接收 Bonsale 的 WebHook 通知
 
 // 取得 Bonsale 外撥專案
 router.get('/auto-dial', async function(req, res, next) {
@@ -40,6 +43,26 @@ router.get('/project', async function(req, res, next) {
   } catch (error) {
     console.error('Error in GET /project:', error.message);
     return res.status(error.status).send(`Error in GET /project: ${error.message}`);
+  }
+});
+
+// 編輯 Bonsale 專案資料
+router.put('/project/3cx/:projectId', async function(req, res, next) {
+  const { projectId } = req.params; // 從路徑參數中取得 projectId
+  const { isEnable } = req.body; 
+
+  try {
+    // 發送 PUT 請求到 Bonsale API
+    const response = await axiosBonsaleInstance.put(
+      `${host}/project/3cx/${projectId}`,
+      { isEnable } // 傳遞 payload 作為請求主體
+    );
+
+    // 回傳 Bonsale API 的回應
+    return res.status(200).send(response.data);
+  } catch (error) {
+    console.error('Error in PUT /project/3cx/:projectId:', error.message);
+    return res.status(error.status).send(`Error in PUT /project/3cx/:projectId: ${error.message}`);
   }
 });
 
