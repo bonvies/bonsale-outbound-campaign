@@ -16,7 +16,7 @@ require('dotenv').config();
 
 
 // 創建 WebSocket Server
-const clientWsV2 = new WebSocket.Server({ port: process.env.WS_PORT_OUTBOUND_CAMPAIGM_V2 || 3022 });
+const clientWsV2 = new WebSocket.Server({ port: process.env.WS_PORT_PROJECT_OUTBOUND || 3022 });
 
 clientWsV2.on('connection', (ws) => {
   console.log('WebSocket Server: Client connected');
