@@ -75,6 +75,7 @@ setInterval(async () => {
 
   } catch (error) {
     console.error('Error while checking active calls:', error.message);
+    globalToken = null; // 如果發生錯誤，清除 token
   }
 }, 3000);
 
