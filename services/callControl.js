@@ -59,7 +59,7 @@ async function hangupCall (token, dn, id) {
     return response.data;
   } catch (error) {
     console.error('Error hangupCall request:', error.message);
-    throw new Error('Failed to hangupCall');
+    return { success: false, error: { status: error.status, message: `Error hangupCall request: ${error.message}` } }; // 返回錯誤
   }
 };
 
