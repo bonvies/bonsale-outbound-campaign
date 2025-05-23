@@ -16,6 +16,7 @@ const {
 
 require('dotenv').config();
 
+const CALL_GAP_TIME = parseInt(process.env.CALL_GAP_TIME) || 3; // 預設 3 秒
 
 // 創建 WebSocket Server
 const clientWsV2 = new WebSocket.Server({ port: process.env.WS_PORT_PROJECT_OUTBOUND || 3022 });
@@ -32,7 +33,7 @@ let globalToken = null;
 const activeCallQueue = [];
 
 setInterval(async () => {
-  console.log('每 3 秒檢查一次撥號狀態');
+  console.log(`每 ${CALL_GAP_TIME} 秒檢查一次撥號狀態`);
   if (!globalToken) { // 如果沒有 token 就回傳給所有客戶端一個空陣列
     console.log('沒有 globalToken，回傳空陣列');
     clientWsV2.clients.forEach((client) => {
@@ -87,7 +88,7 @@ setInterval(async () => {
   } catch (error) {
     console.error('Error while checking active calls:', error.message);
   }
-}, 3000);
+}, CALL_GAP_TIME * 1000); // 每 CALL_GAP_TIME 秒檢查一次撥號狀態
 
 // projectOutbound API
 router.post('/', async function(req, res, next) {
@@ -127,7 +128,7 @@ router.post('/', async function(req, res, next) {
     const { CurrentProfileName, ForwardingProfiles } = fetch_getUsers.data.value[0]; // 這邊我只取第一個代理人詳細資訊
 
     // 我們用還需要知道 CurrentProfileName 的值 有沒有被 Log out from queues 這才是我們要的狀態
-    console.log('撥打者分配的代理人詳細狀態:', CurrentProfileName, ForwardingProfiles);
+    // console.log('撥打者分配的代理人詳細狀態:', CurrentProfileName, ForwardingProfiles);
 
     const findForwardingProfiles = ForwardingProfiles.find(profile => profile.Name === CurrentProfileName);
     const isLogOutFromQueues = findForwardingProfiles?.OfficeHoursAutoQueueLogOut;
