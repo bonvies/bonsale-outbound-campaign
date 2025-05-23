@@ -32,6 +32,7 @@ const activeCallQueue = [];
 setInterval(async () => {
   console.log('每 3 秒檢查一次撥號狀態');
   if (!globalToken) { // 如果沒有 token 就回傳給所有客戶端一個空陣列
+    console.log('沒有 globalToken，回傳空陣列');
     clientWsV2.clients.forEach((client) => {
       client.send(JSON.stringify([]));
     });
@@ -41,9 +42,17 @@ setInterval(async () => {
   try {
     // 獲取目前活躍的撥號狀態
     const fetch_getActiveCalls = await activeCalls(globalToken);
-    if (!fetch_getActiveCalls.success) return res.status(fetch_getActiveCalls.error.status).send(fetch_getActiveCalls.error); // 錯誤處理
-    const activeCall = fetch_getActiveCalls.data;
-    // console.log('目前活躍的撥號狀態 : ', activeCall);
+    console.log('獲取目前活躍的撥號狀態:', fetch_getActiveCalls);
+
+    // 如果 token 失效，清除 globalToken
+    // 這邊的狀況是 token 失效了，這時候我們要清除 globalToken 讓流程持續
+    if (!fetch_getActiveCalls.success && fetch_getActiveCalls.error.status === 401) {
+      console.log('token 失效，清除 globalToken 讓流程持續');
+      globalToken = null; // 清除 token
+      return
+    }
+
+    const activeCall = fetch_getActiveCalls.data; // 目前活躍的撥號狀態
 
     let matchingCallResult = []; // 儲存匹配的撥號物件
 
@@ -75,7 +84,6 @@ setInterval(async () => {
 
   } catch (error) {
     console.error('Error while checking active calls:', error.message);
-    globalToken = null; // 如果發生錯誤，清除 token
   }
 }, 3000);
 
