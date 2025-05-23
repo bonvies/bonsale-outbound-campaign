@@ -149,10 +149,33 @@ router.post('/project/customer/visit', async function(req, res, next) {
   };
 
   try {
-    // 發送 PUT 請求到 Bonsale API
+    // 發送 POST 請求到 Bonsale API
     const response = await axiosBonsaleInstance.post(
       `${host}/project/customer/visit`,
       { projectId, customerId, visitType, visitedUsername, visitedAt, description, visitedResult, task }
+    );
+
+    // 回傳 Bonsale API 的回應
+    return res.status(200).send(response.data);
+  } catch (error) {
+    console.error('Error in POST /project/customer/visit:', error.message);
+    return res.status(error.status).send(`Error in POST /project/customer/visit: ${error.message}`);
+  }
+});
+
+// Bonsale 更新 最新執行時間 /project/:id/auto-dial/:callFlowId/execute
+router.put('/project/:projectId/auto-dial/:callFlowId/execute', async function(req, res, next) {
+  const { projectId, callFlowId } = req.params;
+
+  if (!projectId || !callFlowId ) {
+    return res.status(400).send('Missing required fields');
+  };
+
+  try {
+    // 發送 PUT 請求到 Bonsale API
+    const response = await axiosBonsaleInstance.put(
+      `${host}/project/${projectId}/auto-dial/${callFlowId}/execute`,
+      {}
     );
 
     // 回傳 Bonsale API 的回應
