@@ -74,7 +74,7 @@ async function getCaller (token) {
     if (!caller) {
       return { success: false, error: { status: 404, message: 'Caller type Wqueue not found' } }; // 返回错误
     }
-    return { success: true, data: caller }; // 返回成功的 token
+    return { success: true, data: caller }; // 返回成功的撥打者資訊
   } catch (error) {
     console.error('Error getCaller request:', error.message);
     return { success: false, error: { status: error.status, message: `Error getCaller request: ${error.message}` } }; // 返回错误
