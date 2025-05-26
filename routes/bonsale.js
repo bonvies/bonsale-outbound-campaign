@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const e = require('express');
+const WebSocket = require('ws');
 require('dotenv').config();
 
 const host = process.env.BONSALE_HOST;
@@ -16,7 +16,26 @@ const axiosBonsaleInstance = axios.create({
   },
 });
 
-// TODO 建立一個 /WebHook 端點 來接收 Bonsale 的 WebHook 通知
+// 創建 WebSocket Server
+const clientWsWebHook = new WebSocket.Server({ port: process.env.WS_PORT_BONSALE_WEBHOOK || 3023 });
+
+// 建立一個 /WebHook 端點 來接收 Bonsale 的 WebHook 通知
+router.post('/WebHook', async function(req, res, next) {
+  try {
+    console.log('Received Bonsale WebHook:', req.body);
+    
+    // 將 WebHook 資料發送到所有連接的客戶端
+    clientWsWebHook.clients.forEach((client) => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify(req.body)); // 將 WebHook 資料發送到所有連接的客戶端
+      }
+    });
+    res.status(200).send({ message: 'WebHook received' });
+  } catch (error) {
+    console.error('Error in POST /WebHook:', error.message);
+    return res.status(error.status).send(`Error in POST /WebHook: ${error.message}`);
+  }
+});
 
 // 取得 Bonsale 外撥專案
 router.get('/auto-dial', async function(req, res, next) {
