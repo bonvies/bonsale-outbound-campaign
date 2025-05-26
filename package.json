@@ -6,6 +6,7 @@
     "start": "nodemon ./bin/www"
   },
   "dependencies": {
+    "@ngrok/ngrok": "^1.5.1",
     "axios": "^1.8.4",
     "cookie-parser": "~1.4.4",
     "cors": "^2.8.5",
@@ -17,5 +18,18 @@
     "morgan": "~1.9.1",
     "uuid": "^11.1.0",
     "ws": "^8.18.1"
-  }
+  },
+  "description": "## Environment Variables",
+  "main": "app.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Aruminiya/bonsale-outbound-campaign.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Aruminiya/bonsale-outbound-campaign/issues"
+  },
+  "homepage": "https://github.com/Aruminiya/bonsale-outbound-campaign#readme"
 }
