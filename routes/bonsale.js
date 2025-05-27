@@ -17,18 +17,24 @@ const axiosBonsaleInstance = axios.create({
 });
 
 // 創建 WebSocket Server
-const clientWsWebHook = new WebSocket.Server({ port: process.env.WS_PORT_BONSALE_WEBHOOK || 3023 });
+const clientWsWebHook = new WebSocket.Server({ port: process.env.WS_PORT_BONSALE_WEBHOOK });
+
+clientWsWebHook.on('connection', (ws) => {
+  console.log('WebSocket Server clientWsWebHook: Client connected');
+
+  ws.on('close', () => {
+    console.log('WebSocket Server clientWsWebHook: Client disconnected');
+  });
+});
 
 // 建立一個 /WebHook 端點 來接收 Bonsale 的 WebHook 通知
 router.post('/WebHook', async function(req, res, next) {
   try {
     console.log('Received Bonsale WebHook:', req.body);
-    
+
     // 將 WebHook 資料發送到所有連接的客戶端
     clientWsWebHook.clients.forEach((client) => {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(JSON.stringify(req.body)); // 將 WebHook 資料發送到所有連接的客戶端
-      }
+      client.send(JSON.stringify(req.body)); // 將 WebHook 資料發送到所有連接的客戶端
     });
     res.status(200).send({ message: 'WebHook received' });
   } catch (error) {
@@ -38,11 +44,29 @@ router.post('/WebHook', async function(req, res, next) {
 });
 
 // 取得 Bonsale 外撥專案
-router.get('/auto-dial', async function(req, res, next) {
+router.get('/project/auto-dial', async function(req, res, next) {
   try {
     const queryString = new URLSearchParams(req.query).toString().replace(/%2B/g, '+'); // 將 %2B 替換為 + 因為 Bonsale 的 sort query API 格式會像這樣 created_at+desc 但 new URLSearchParams 會將 + 編碼成 %2B 導致無法正確查詢
     console.log(req.query)
     const autoDialData = await axiosBonsaleInstance.get(`${host}/project/auto-dial?${queryString}`);
+    const autoDialProject = autoDialData.data;
+    return res.status(200).send(autoDialProject);
+  } catch (error) {
+    console.error('Error in GET /auto-dial:', error.message);
+    return res.status(error.status).send(`Error in GET /auto-dial: ${error.message}`);
+  }
+});
+
+// 取得單一 Bonsale 外撥專案
+router.get('/project/:projectId/auto-dial/:callFlowId', async function(req, res, next) {
+  const { projectId, callFlowId } = req.params;
+  console.log('projectId:', projectId);
+  console.log('callFlowId:', callFlowId);
+  if (!projectId || !callFlowId) {
+    return res.status(400).send('Missing required fields');
+  };
+  try {
+    const autoDialData = await axiosBonsaleInstance.get(`${host}/project/${projectId}/auto-dial/${callFlowId}`);
     const autoDialProject = autoDialData.data;
     return res.status(200).send(autoDialProject);
   } catch (error) {

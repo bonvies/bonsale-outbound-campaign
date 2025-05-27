@@ -19,9 +19,9 @@ require('dotenv').config();
 const CALL_GAP_TIME = parseInt(process.env.CALL_GAP_TIME) || 3; // 預設 3 秒
 
 // 創建 WebSocket Server
-const clientWsV2 = new WebSocket.Server({ port: process.env.WS_PORT_PROJECT_OUTBOUND || 3022 });
+const clientWsProjectOutbound = new WebSocket.Server({ port: process.env.WS_PORT_PROJECT_OUTBOUND });
 
-clientWsV2.on('connection', (ws) => {
+clientWsProjectOutbound.on('connection', (ws) => {
   console.log('WebSocket Server: Client connected');
 
   ws.on('close', () => {
@@ -36,7 +36,7 @@ setInterval(async () => {
   console.log(`每 ${CALL_GAP_TIME} 秒檢查一次撥號狀態`);
   if (!globalToken) { // 如果沒有 token 就回傳給所有客戶端一個空陣列
     console.log('沒有 globalToken，回傳空陣列');
-    clientWsV2.clients.forEach((client) => {
+    clientWsProjectOutbound.clients.forEach((client) => {
       client.send(JSON.stringify([]));
     });
     return;
@@ -81,7 +81,7 @@ setInterval(async () => {
 
     console.log('匹配的撥號物件:', matchingCallResult);
     // 將匹配的撥號物件傳送給 WebSocket Server 的所有連線客戶端
-    clientWsV2.clients.forEach((client) => {
+    clientWsProjectOutbound.clients.forEach((client) => {
       client.send(JSON.stringify(matchingCallResult));
     });
 
