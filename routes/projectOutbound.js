@@ -135,12 +135,27 @@ router.post('/', async function(req, res, next) {
 
     // console.log('撥打者分配的代理人詳細狀態:', CurrentProfileName);
 
+    /* NOTO 這邊的邏輯 被簡化了 變成只要 偵測 CurrentProfileName 只要不是 Available 就不要撥打電話
+
+      // 如果不是空閒的話 就可以不可以撥打電話 並回傳 res 訊息 ( 狀態碼要設 202 )
+      if (isLogOutFromQueues) {
+        // console.warn('撥打者分配的代理人狀態不是空閒的', CurrentProfileName);
+        console.warn(`撥打者分配的代理人狀態是 ${CurrentProfileName} 此狀態是設定不是空閒的`);
+        return res.status(202).send({
+          message: `撥打者分配的代理人狀態是 ${CurrentProfileName} 此狀態是設定不是空閒的`,
+          status: CurrentProfileName,
+          isLogOutFromQueues
+        });
+      }
+    
+    */
+
     // 如果不是空閒的話 就可以不可以撥打電話 並回傳 res 訊息 ( 狀態碼要設 202 )
-    if (isLogOutFromQueues) {
+    if (CurrentProfileName !== 'Available') {
       // console.warn('撥打者分配的代理人狀態不是空閒的', CurrentProfileName);
-      console.warn(`撥打者分配的代理人狀態是 ${CurrentProfileName} 此狀態是設定不是空閒的`);
+      console.warn(`撥打者分配的代理人狀態是 ${CurrentProfileName} 此狀態限制不能撥打電話`);
       return res.status(202).send({
-        message: `撥打者分配的代理人狀態是 ${CurrentProfileName} 此狀態是設定不是空閒的`,
+        message: `撥打者分配的代理人狀態是 ${CurrentProfileName} 此狀態限制不能撥打電話`,
         status: CurrentProfileName,
         isLogOutFromQueues
       });
