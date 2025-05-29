@@ -63,8 +63,8 @@ server.on('upgrade', (request, socket, head) => {
 });
 
 // TODO 目前 ngrok 是免費版的 是為了測試 Bonsale WebHook 所用 所以之後可能會移除或使用付費版
-// ngrok.connect({ addr: 3020, authtoken_from_env: true })
-// 	.then(listener => console.log(`Ingress established at: ${listener.url()}`));
+ngrok.connect({ addr: port, authtoken_from_env: true })
+	.then(listener => console.log(`Ingress established at: ${listener.url()}`));
 
 /**
  * Normalize a port into a number, string, or false.
