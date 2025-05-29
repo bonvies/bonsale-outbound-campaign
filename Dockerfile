@@ -15,11 +15,5 @@ COPY . .
 # Expose the port the app runs on (REST API)
 EXPOSE 3020
 
-# Expose the outboundCampaigm WebSocket server port
-EXPOSE 3021
-
-# Expose the projectOutbound WebSocket server port
-EXPOSE 3022
-
 # Command to run the application
 CMD ["node", "./bin/www"]
