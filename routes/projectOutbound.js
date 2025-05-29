@@ -19,13 +19,13 @@ require('dotenv').config();
 const CALL_GAP_TIME = parseInt(process.env.CALL_GAP_TIME) || 3; // 預設 3 秒
 
 // 創建 WebSocket Server
-const clientWsProjectOutbound = new WebSocket.Server({ port: process.env.WS_PORT_PROJECT_OUTBOUND });
+const clientWsProjectOutbound = new WebSocket.Server({ noServer: true });
 
 clientWsProjectOutbound.on('connection', (ws) => {
-  console.log('WebSocket Server: Client connected');
+  console.log('WebSocket Server - clientWsProjectOutbound: Client connected');
 
   ws.on('close', () => {
-    console.log('WebSocket Server: Client disconnected');
+    console.log('WebSocket Server - clientWsProjectOutbound: Client disconnected');
   });
 });
 
@@ -189,4 +189,4 @@ router.post('/', async function(req, res, next) {
   }
 });
 
-module.exports = router;
+module.exports = { router, clientWsProjectOutbound };

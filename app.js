@@ -9,9 +9,9 @@ const cors = require('cors');
 const indexRouter = require('./routes/index');
 const callControlRouter = require('./routes/callControl');
 const xApiRouter = require('./routes/xApi');
-const bonsaleRouter = require('./routes/bonsale');
-const outboundCampaigmRouter = require('./routes/outboundCampaigm');
-const projectOutboundRouter = require('./routes/projectOutbound');
+const { router: bonsaleRouter} = require('./routes/bonsale');
+const { router: outboundCampaigmRouter} = require('./routes/outboundCampaigm');
+const { router: projectOutboundRouter } = require('./routes/projectOutbound');
 
 const app = express();
 

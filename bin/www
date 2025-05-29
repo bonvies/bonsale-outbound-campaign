@@ -14,22 +14,25 @@ process.on('unhandledRejection', (reason, promise) => {
  * Module dependencies.
  */
 
-var app = require('../app');
-var debug = require('debug')('bonsale-outbound-campaign:server');
-var http = require('http');
+const app = require('../app');
+const debug = require('debug')('bonsale-outbound-campaign:server');
+const http = require('http');
+const { clientWsProjectOutbound } = require('../routes/projectOutbound');
+const { clientWsOutboundCampaigm } = require('../routes/outboundCampaigm');
+const { clientWsWebHook } = require('../routes/bonsale');
 const ngrok = require('@ngrok/ngrok');
 /**
  * Get port from environment and store in Express.
  */
 
-var port = normalizePort(process.env.HTTP_PORT || '3020');
+const port = normalizePort(process.env.HTTP_PORT || '3020');
 app.set('port', port);
 
 /**
  * Create HTTP server.
  */
 
-var server = http.createServer(app);
+const server = http.createServer(app);
 
 /**
  * Listen on provided port, on all network interfaces.
@@ -38,6 +41,26 @@ var server = http.createServer(app);
 server.listen(port);
 server.on('error', onError);
 server.on('listening', onListening);
+
+
+// 加入 WebSocket upgrade 處理
+server.on('upgrade', (request, socket, head) => {
+  if (request.url === '/ws/projectOutbound') {
+    clientWsProjectOutbound.handleUpgrade(request, socket, head, (ws) => {
+      clientWsProjectOutbound.emit('connection', ws, request);
+    });
+  } else if (request.url === '/ws/outboundCampaigm') {
+    clientWsOutboundCampaigm.handleUpgrade(request, socket, head, (ws) => {
+      clientWsOutboundCampaigm.emit('connection', ws, request);
+    });
+  } else if (request.url === '/ws/bonsaleWebHook') {
+    clientWsWebHook.handleUpgrade(request, socket, head, (ws) => {
+      clientWsWebHook.emit('connection', ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
+});
 
 // TODO 目前 ngrok 是免費版的 是為了測試 Bonsale WebHook 所用 所以之後可能會移除或使用付費版
 // ngrok.connect({ addr: 3020, authtoken_from_env: true })
@@ -48,7 +71,7 @@ server.on('listening', onListening);
  */
 
 function normalizePort(val) {
-  var port = parseInt(val, 10);
+  const port = parseInt(val, 10);
 
   if (isNaN(port)) {
     // named pipe
@@ -72,7 +95,7 @@ function onError(error) {
     throw error;
   }
 
-  var bind = typeof port === 'string'
+  const bind = typeof port === 'string'
     ? 'Pipe ' + port
     : 'Port ' + port;
 
@@ -96,8 +119,8 @@ function onError(error) {
  */
 
 function onListening() {
-  var addr = server.address();
-  var bind = typeof addr === 'string'
+  const addr = server.address();
+  const bind = typeof addr === 'string'
     ? 'pipe ' + addr
     : 'port ' + addr.port;
   debug('Listening on ' + bind);

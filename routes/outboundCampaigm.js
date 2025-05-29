@@ -14,13 +14,13 @@ const wsHost = process.env.WS_HOST_3CX
 const callGapTime = parseInt(process.env.CALL_GAP_TIME) || 5; // 預設 5 秒
 
 // 創建 WebSocket Server
-const clientWs = new WebSocket.Server({ port: process.env.WS_PORT_OUTBOUND_CAMPAIGM || 3021 });
+const clientWsOutboundCampaigm = new WebSocket.Server({ noServer: true });
 
-clientWs.on('connection', (ws) => {
-  console.log('WebSocket Server: Client connected');
+clientWsOutboundCampaigm.on('connection', (ws) => {
+  console.log('WebSocket Server - clientWsOutboundCampaigm: Client connected');
 
   ws.on('close', () => {
-    console.log('WebSocket Server: Client disconnected');
+    console.log('WebSocket Server - clientWsOutboundCampaigm: Client disconnected');
   });
 });
 
@@ -88,7 +88,7 @@ function createWs (token, phones, dn, device_id, caller, client_id) {
         
 
         // 傳送 resultData 給 WebSocket Server 的所有連線客戶端
-        clientWs.clients.forEach((client) => {
+        clientWsOutboundCampaigm.clients.forEach((client) => {
           client.send(JSON.stringify(resultData));
         });
         
@@ -117,7 +117,7 @@ function createWs (token, phones, dn, device_id, caller, client_id) {
 
       } catch (error) {
         // 如果不是 JSON 格式，直接輸出字串
-        clientWs.close();
+        clientWsOutboundCampaigm.close();
         console.log('Received raw message from WebSocket server:', data.toString());
       }
     });
@@ -178,4 +178,4 @@ router.post('/', async function(req, res, next) {
   }
 });
 
-module.exports = router;
+module.exports = { router, clientWsOutboundCampaigm };

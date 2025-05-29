@@ -17,13 +17,13 @@ const axiosBonsaleInstance = axios.create({
 });
 
 // 創建 WebSocket Server
-const clientWsWebHook = new WebSocket.Server({ port: process.env.WS_PORT_BONSALE_WEBHOOK });
+const clientWsWebHook = new WebSocket.Server({ noServer: true });
 
 clientWsWebHook.on('connection', (ws) => {
-  console.log('WebSocket Server clientWsWebHook: Client connected');
+  console.log('WebSocket Server - clientWsWebHook: Client connected');
 
   ws.on('close', () => {
-    console.log('WebSocket Server clientWsWebHook: Client disconnected');
+    console.log('WebSocket Server - clientWsWebHook: Client disconnected');
   });
 });
 
@@ -229,4 +229,4 @@ router.put('/project/:projectId/auto-dial/:callFlowId/execute', async function(r
   }
 });
 
-module.exports = router;
+module.exports = { router, clientWsWebHook };
