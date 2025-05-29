@@ -1,5 +1,15 @@
 #!/usr/bin/env node
 
+// 攔截未捕捉的錯誤，避免伺服器直接 crash
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+  // 可選：決定是否 process.exit(1)
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  // 可選：決定是否 process.exit(1)
+});
+
 /**
  * Module dependencies.
  */
