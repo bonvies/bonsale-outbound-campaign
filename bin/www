@@ -20,7 +20,7 @@ const http = require('http');
 const { clientWsProjectOutbound } = require('../routes/projectOutbound');
 const { clientWsOutboundCampaigm } = require('../routes/outboundCampaigm');
 const { clientWsWebHook } = require('../routes/bonsale');
-const ngrok = require('@ngrok/ngrok');
+
 /**
  * Get port from environment and store in Express.
  */
@@ -63,6 +63,7 @@ server.on('upgrade', (request, socket, head) => {
 });
 
 // TODO 目前 ngrok 是免費版的 是為了測試 Bonsale WebHook 所用 只在本地開發環境使用
+// const ngrok = require('@ngrok/ngrok');
 // ngrok.connect({ addr: port, authtoken: '2xcLfZYGdVrF5t6ftruUpRIJrk5_4g4rcBtzhWFcDw2pv4U8k' })
 // 	.then(listener => console.log(`Ingress established at: ${listener.url()}`));
 
