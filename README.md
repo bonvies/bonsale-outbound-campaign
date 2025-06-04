@@ -1,5 +1,7 @@
 # bonsale-outbound-campaign
 
+**Version: v0.0.3**
+
 ## Environment Variables
 
 The application uses the following environment variables. These should be defined in a `.env` file located in the root directory of the project.
