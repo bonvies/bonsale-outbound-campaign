@@ -13,6 +13,7 @@ const {
   getReportAgentsInQueueStatistics,
   getUsers
 } = require('../services/xApi.js');
+const { getOutbound } = require('../services/bonsale.js');
 
 const { logWithTimestamp, warnWithTimestamp, errorWithTimestamp } = require('../util/timestamp.js');
 
@@ -32,15 +33,72 @@ clientWsProjectOutbound.on('connection', (ws) => {
 });
 
 let globalToken = null;
-const activeCallQueue = [];
+const projects = []; // 儲存專案資訊
+const activeCallQueue = []; // 儲存活躍撥號的佇列
 
 setInterval(async () => {
+  projects.forEach(async (project, projectIndex, projectArray ) => {
+    const { grant_type, client_id, client_secret, callFlowId, projectId, action } = project;
+    if (action === 'start') {
+      logWithTimestamp(`開始撥打專案: ${projectId} / ${callFlowId}`);
+
+      // 先抓 callState = 0 名單
+      const firstOutboundData = await startGetOutboundList(callFlowId, projectId, 0);
+      if (firstOutboundData) {
+       const { phone, customerId } = firstOutboundData;
+       logWithTimestamp(`第 1 輪 ---- 專案 ${projectId} / ${customerId} 有可撥打的名單: ${phone}，開始撥打電話`);
+        // 撥打電話
+       await projectOutbound(
+          grant_type,
+          client_id,
+          client_secret,
+          phone,
+          projectId,
+          customerId
+        )
+        projectArray[projectIndex] = {
+          ...project,
+          action: 'waiting' // 撥打完第一輪後，將 action 改為 waiting
+        };
+      }
+      
+      // 如果沒有可撥打的初始名單，就檢查是 callState = 2 名單
+      const secondOutboundData = await startGetOutboundList(callFlowId, projectId, 2);
+      if (secondOutboundData) {
+        const { phone, customerId } = secondOutboundData;
+        logWithTimestamp(`第 2 輪 ---- 專案 ${projectId} / ${customerId} 有可撥打的名單: ${phone}，開始撥打電話`);
+        // 撥打電話
+        // await projectOutbound(
+        //   grant_type,
+        //   client_id,
+        //   client_secret,
+        //   phone,
+        //   projectId,
+        //   customerId
+        // );
+          projectArray[projectIndex] = {
+            ...project,
+            action: 'waiting' // 撥打完第一輪後，將 action 改為 waiting
+          };
+      }
+
+    }
+  });
+
+  // TODO 目前搬移 撥號拿名單的邏輯到這邊 還要繼續搬 ...
+
+
+
+
+
+
+
   logWithTimestamp(`每 ${CALL_GAP_TIME} 秒檢查一次撥號狀態`);
   if (!globalToken) { // 如果沒有 token 就回傳給所有客戶端一個空陣列
     logWithTimestamp('沒有 globalToken，回傳空陣列');
-    clientWsProjectOutbound.clients.forEach((client) => {
-      client.send(JSON.stringify([]));
-    });
+    // clientWsProjectOutbound.clients.forEach((client) => {
+    //   client.send(JSON.stringify([]));
+    // });
     return;
   };
 
@@ -81,7 +139,20 @@ setInterval(async () => {
       }
     }
 
+    // 針對匹配的撥號物件 也新增近 Projects 中對應的 Project 資訊
+    matchingCallResult = matchingCallResult.map((item) => {
+      const project = projects.find(p => p.projectId === item.projectId);
+      return {
+        ...item,
+        project: project ? {
+          callFlowId: project.callFlowId,
+          projectId: project.projectId,
+          action: project.action,
+        } : {}, // 如果找不到對應的專案，就設為 {}
+      };
+    });
     logWithTimestamp('匹配的撥號物件:', matchingCallResult);
+
     // 將匹配的撥號物件傳送給 WebSocket Server 的所有連線客戶端
     clientWsProjectOutbound.clients.forEach((client) => {
       client.send(JSON.stringify(matchingCallResult));
@@ -92,11 +163,46 @@ setInterval(async () => {
   }
 }, CALL_GAP_TIME * 1000); // 每 CALL_GAP_TIME 秒檢查一次撥號狀態
 
-// projectOutbound API
-router.post('/', async function(req, res, next) {
-  const id = uuidv4();
-  const { grant_type, client_id, client_secret, phone, projectId, customerId } = req.body;
 
+
+
+
+
+async function startGetOutboundList(callFlowId, projectId, callState) {
+  const outboundDataList = await getOutbound(callFlowId, projectId, callState);
+  if (!outboundDataList.success) {
+    errorWithTimestamp(`Error in outboundDataList for project ${projectId}`);
+    throw new Error(`Error in outboundDataList for project ${projectId}`);
+  }
+  if (outboundDataList.data.list.length > 0) {
+    logWithTimestamp(`專案 ${projectId} / ${callFlowId} 有可撥打的名單，開始撥打電話`);
+    const outboundData = outboundDataList.data.list[0];
+    const { phone, id: customerId } = outboundData.customer
+
+    // await projectOutbound(grant_type, client_id, client_secret, firstOutboundData.data[0].phone, projectId, customerId);
+    return { phone, customerId };
+  } else {
+    logWithTimestamp(`專案 ${projectId} / ${callFlowId} 沒有可撥打的名單，等待下一次檢查`);
+    return null; // 沒有可撥打的名單
+  }
+};
+
+
+
+
+
+
+
+
+async function projectOutbound(
+  grant_type,
+  client_id,
+  client_secret,
+  phone,
+  projectId,
+  customerId
+) {
+  const id = uuidv4();
   if (!grant_type || !client_id || !client_secret || !phone || !projectId || !customerId) {
     errorWithTimestamp('Missing required fields');
     return res.status(400).send('Missing required fields');
@@ -104,12 +210,26 @@ router.post('/', async function(req, res, next) {
   try {
     // 先取得 3CX token 
     const fetch_get3cxToken = await get3cxToken(grant_type, client_id, client_secret);
-    if (!fetch_get3cxToken.success) return res.status(fetch_get3cxToken.error.status).send(fetch_get3cxToken.error); // 錯誤處理
+    if (!fetch_get3cxToken.success) {
+      errorWithTimestamp('Failed to fetch_get3cxToken');
+      return {
+        success: false,
+        message: fetch_get3cxToken.error.message,
+        status: fetch_get3cxToken.error.status,
+      };
+    }
     const token = fetch_get3cxToken.data?.access_token; // 取得 access_token
 
     // 取得 撥號分機資訊 (需要設定 queue)
     const fetch_getCaller = await getCaller(token); // 取得撥號者
-    if (!fetch_getCaller.success) return res.status(fetch_getCaller.error.status).send(fetch_getCaller.error); // 錯誤處理
+    if (!fetch_getCaller.success) {
+      errorWithTimestamp('Failed to fetch_getCaller');
+      return {
+        success: false,
+        message: fetch_getCaller.error.message,
+        status: fetch_getCaller.error.status,
+      };
+    }
     const caller = fetch_getCaller.data
     const { dn: queueDn, device_id } = caller.devices[0]; // 這邊我只有取第一台設備資訊
     // logWithTimestamp('撥打者資訊 : ', caller);
@@ -120,13 +240,28 @@ router.post('/', async function(req, res, next) {
     // 取得 隊列 { queueDn } 的代理人資訊
     const currentDate = new Date().toISOString();
     const reportAgentsInQueueStatistics = await getReportAgentsInQueueStatistics(token, queueDn, currentDate, currentDate, '0:00:0');
+    if (!reportAgentsInQueueStatistics.success) {
+      errorWithTimestamp('Failed to getReportAgentsInQueueStatistics');
+      return {
+        success: false,
+        message: reportAgentsInQueueStatistics.error.message,
+        status: reportAgentsInQueueStatistics.error.status,
+      };
+    }
     // logWithTimestamp('撥打者分配的代理人狀態:', reportAgentsInQueueStatistics.data);
     const { Dn: agentDn } = reportAgentsInQueueStatistics.data.value[0]; // 這邊我只取第一個代理人資訊
     // logWithTimestamp('撥打者分配的代理人狀態:', agentDn , queueDn);
 
     // 有了 agentDn 我可以查看這個代理人的詳細狀態 包含是否為空閒狀態 ( CurrentProfileName 的值 )
     const fetch_getUsers = await getUsers(token, agentDn);
-    if (!fetch_getUsers.success) return res.status(fetch_getUsers.error.status).send(fetch_getUsers.error); // 錯誤處理
+    if (!fetch_getUsers.success) {
+      errorWithTimestamp('Failed to getUsers');
+      return {
+        success: false,
+        message: fetch_getUsers.error.message,
+        status: fetch_getUsers.error.status,
+      };
+    }
     const { CurrentProfileName, ForwardingProfiles } = fetch_getUsers.data.value[0]; // 這邊我只取第一個代理人詳細資訊
 
     // 我們用還需要知道 CurrentProfileName 的值 有沒有被 Log out from queues 這才是我們要的狀態
@@ -156,11 +291,11 @@ router.post('/', async function(req, res, next) {
     if (CurrentProfileName !== 'Available') {
       // warnWithTimestamp('撥打者分配的代理人狀態不是空閒的', CurrentProfileName);
       warnWithTimestamp(`撥打者分配的代理人狀態是 ${CurrentProfileName} 此狀態限制不能撥打電話`);
-      return res.status(202).send({
+      return {
         message: `撥打者分配的代理人狀態是 ${CurrentProfileName} 此狀態限制不能撥打電話`,
         status: CurrentProfileName,
         isLogOutFromQueues
-      });
+      };
     }
     // 如果是空閒的話 就可以準備撥打電話
     logWithTimestamp(`撥打者分配的代理人狀態是 ${CurrentProfileName} 此狀態是設定是空閒的`);
@@ -180,15 +315,36 @@ router.post('/', async function(req, res, next) {
     // // 將請求加入佇列
     activeCallQueue.push({ token, callid, id, phone, projectId, customerId });
 
-    res.status(200).send({
+    return {
+      success: true,
       message: 'Request outboundCampaigm successfully',
       token_3cx: token,
       currentCall
-    });
+    };
   } catch (error) {
     errorWithTimestamp('Error in POST /projectOutbound:', error);
-    res.status(error.status).send(`Error in POST /projectOutbound: ${error.message}`);
+    return {
+      success: false,
+      message: error.message,
+      status: error.status,
+    };
   }
+}
+
+// projectOutbound API
+router.post('/', async function(req, res, next) {
+  const { grant_type, client_id, client_secret, callFlowId, projectId, action } = req.body;
+  // action 有三種狀態 start, stop, pause
+  if (!grant_type || !client_id || !client_secret || !callFlowId || !projectId || !action) {
+    errorWithTimestamp('Missing required fields');
+    return res.status(400).send('Missing required fields');
+  }
+
+  projects.push({ grant_type, client_id, client_secret, callFlowId, projectId, action });
+
+  res.status(200).send({
+    message: 'Request projectOutbound successfully'
+  });
 });
 
 module.exports = { router, clientWsProjectOutbound };
