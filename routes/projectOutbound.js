@@ -18,7 +18,7 @@ const { logWithTimestamp, warnWithTimestamp, errorWithTimestamp } = require('../
 
 require('dotenv').config();
 
-const CALL_GAP_TIME = parseInt(process.env.CALL_GAP_TIME) || 3; // 預設 3 秒
+const CALL_GAP_TIME = parseFloat(process.env.CALL_GAP_TIME) || 3; // 預設 3 秒
 
 // 創建 WebSocket Server
 const clientWsProjectOutbound = new WebSocket.Server({ noServer: true });
