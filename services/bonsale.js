@@ -28,6 +28,71 @@ async function getOutbound (callFlowId, projectId, callStatus, limit = 1) {
   }
 };
 
+async function updateCallStatus (projectId, customerId, callStatus) {
+  try {
+    const response = await axios.put(`${host}/project/${projectId}/customer/${customerId}/callStatus`, { callStatus });
+    return { success: true, data: response.data }; // 返回成功
+  } catch (error) {
+    console.error('Error getOutbound request:', error.message);
+    return { success: false, error: { status: error.status, message: `Error getOutbound request: ${error.message}` } }; // 返回錯誤
+  }
+}
+
+async function updateBonsaleProjectAutoDialExecute (projectId) {
+  try {
+    const response = await axios.put(`${host}/project/${projectId}/auto-dial/${callFlowId}/execute`, {});
+    return { success: true, data: response.data }; // 返回成功
+  } catch (error) {
+    console.error('Error getOutbound request:', error.message);
+    return { success: false, error: { status: error.status, message: `Error getOutbound request: ${error.message}` } }; // 返回錯誤
+  }
+}
+
+async function updateDialUpdate (projectId, customerId) {
+  try {
+    const response = await axios.put(`${host}/project/${projectId}/customer/${customerId}/dialUpdate`, {});
+    return { success: true, data: response.data }; // 返回成功
+  } catch (error) {
+    console.error('Error getOutbound request:', error.message);
+    return { success: false, error: { status: error.status, message: `Error getOutbound request: ${error.message}` } }; // 返回錯誤
+  }
+}
+
+async function updateVisitRecord (
+  projectId,
+  customerId,
+  visitType,
+  visitedUsername,
+  visitedAt,
+  description,
+  visitedResult,
+  task
+) {
+  try {
+    const payload = {
+      projectId,
+      customerId,
+      visitType,
+      visitedUsername,
+      visitedAt,
+      description,
+      visitedResult,
+    };
+    if (task !== undefined) {
+      payload.task = task;
+    }
+    const response = await axios.put(`${host}/project/customer/visit`, payload);
+    return { success: true, data: response.data }; // 返回成功
+  } catch (error) {
+    console.error('Error getOutbound request:', error.message);
+    return { success: false, error: { status: error.status, message: `Error getOutbound request: ${error.message}` } }; // 返回錯誤
+  }
+}
+
 module.exports = {
   getOutbound,
+  updateCallStatus,
+  updateBonsaleProjectAutoDialExecute,
+  updateDialUpdate,
+  updateVisitRecord
 };

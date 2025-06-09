@@ -13,8 +13,13 @@ const {
   getReportAgentsInQueueStatistics,
   getUsers
 } = require('../services/xApi.js');
-const { getOutbound } = require('../services/bonsale.js');
-
+const { autoOutbound } = require('../components/autoOutbound.js');
+const {
+  updateCallStatus,
+  updateBonsaleProjectAutoDialExecute,
+  updateDialUpdate,
+  updateVisitRecord
+} = require('../services/bonsale.js');
 const { logWithTimestamp, warnWithTimestamp, errorWithTimestamp } = require('../util/timestamp.js');
 
 require('dotenv').config();
@@ -36,53 +41,14 @@ let globalToken = null;
 const projects = []; // 儲存專案資訊
 const activeCallQueue = []; // 儲存活躍撥號的佇列
 
+
+
+// 每 CALL_GAP_TIME 秒 進行自動撥號 並 檢查撥號狀態
 setInterval(async () => {
+  const updatePromises = []; // 儲存要推送的 Promises API
+
   projects.forEach(async (project, projectIndex, projectArray ) => {
-    const { grant_type, client_id, client_secret, callFlowId, projectId, action } = project;
-    if (action === 'start') {
-      logWithTimestamp(`開始撥打專案: ${projectId} / ${callFlowId}`);
-
-      // 先抓 callState = 0 名單
-      const firstOutboundData = await startGetOutboundList(callFlowId, projectId, 0);
-      if (firstOutboundData) {
-       const { phone, customerId } = firstOutboundData;
-       logWithTimestamp(`第 1 輪 ---- 專案 ${projectId} / ${customerId} 有可撥打的名單: ${phone}，開始撥打電話`);
-        // 撥打電話
-       await projectOutbound(
-          grant_type,
-          client_id,
-          client_secret,
-          phone,
-          projectId,
-          customerId
-        )
-        projectArray[projectIndex] = {
-          ...project,
-          action: 'waiting' // 撥打完第一輪後，將 action 改為 waiting
-        };
-      }
-      
-      // 如果沒有可撥打的初始名單，就檢查是 callState = 2 名單
-      const secondOutboundData = await startGetOutboundList(callFlowId, projectId, 2);
-      if (secondOutboundData) {
-        const { phone, customerId } = secondOutboundData;
-        logWithTimestamp(`第 2 輪 ---- 專案 ${projectId} / ${customerId} 有可撥打的名單: ${phone}，開始撥打電話`);
-        // 撥打電話
-        // await projectOutbound(
-        //   grant_type,
-        //   client_id,
-        //   client_secret,
-        //   phone,
-        //   projectId,
-        //   customerId
-        // );
-          projectArray[projectIndex] = {
-            ...project,
-            action: 'waiting' // 撥打完第一輪後，將 action 改為 waiting
-          };
-      }
-
-    }
+    await autoOutbound(project, projectIndex, projectArray);
   });
 
   // TODO 目前搬移 撥號拿名單的邏輯到這邊 還要繼續搬 ...
@@ -117,7 +83,7 @@ setInterval(async () => {
 
     const activeCall = fetch_getActiveCalls.data; // 目前活躍的撥號狀態
 
-    let matchingCallResult = []; // 儲存匹配的撥號物件
+    let matchingCallResults = []; // 儲存匹配的撥號物件
 
     // 遍歷 activeCallQueue，檢查是否有匹配的 callId
     for (let i = activeCallQueue.length - 1; i >= 0; i--) {
@@ -125,7 +91,7 @@ setInterval(async () => {
       const matchingCall = activeCall.value?.find(item => item.Id === queueItem.callid);
 
       if (matchingCall) {
-        matchingCallResult.push({
+        matchingCallResults.push({
           id:queueItem.id,
           phone: queueItem.phone,
           projectId: queueItem.projectId,
@@ -140,7 +106,7 @@ setInterval(async () => {
     }
 
     // 針對匹配的撥號物件 也新增近 Projects 中對應的 Project 資訊
-    matchingCallResult = matchingCallResult.map((item) => {
+    matchingCallResults = matchingCallResults.map((item) => {
       const project = projects.find(p => p.projectId === item.projectId);
       return {
         ...item,
@@ -151,11 +117,56 @@ setInterval(async () => {
         } : {}, // 如果找不到對應的專案，就設為 {}
       };
     });
-    logWithTimestamp('匹配的撥號物件:', matchingCallResult);
+    logWithTimestamp('匹配的撥號物件:', matchingCallResults);
+
+    projects.forEach(async (project, projectIndex, projectArray ) => {
+      // 檢查專案是否有匹配的撥號物件
+      const projectCalls = matchingCallResults.find(item => item.projectId === project.projectId);
+      if (projectCalls.length > 0) {
+        // 如果有匹配的撥號物件，則更新專案狀態
+        logWithTimestamp(`專案 ${project.projectId} 有匹配的撥號物件:`, projectCalls);
+        // 更新專案狀態為 'active' 並儲存匹配的撥號物件
+        projectArray[projectIndex] = {
+          ...project,
+          action: 'active',
+          calls: projectCalls,
+        };
+      } else if (project.calls) { // 找到之前記錄在專案的撥打資料 
+        // 如果沒有匹配的撥號物件，但專案中有 calls，則更新專案狀態為 'active' 並清除 calls
+        logWithTimestamp(`專案 ${project.projectId} 沒有匹配的撥號物件`);
+
+        updatePromises = [
+          updateCallStatus(
+            project.projectCallData.projectId,
+            project.projectCallData.customerId,
+            projectCalls.activeCall?.Status === 'Talking' ? 1 : 2, // 判斷撥打狀態是否為成功接通
+          ),
+          updateBonsaleProjectAutoDialExecute(
+            project.projectCallData.projectId,
+            project.callFlowId,
+          ),
+        ];
+        //TODO 製作到這邊...
+
+        projectArray[projectIndex] = {
+          ...project,
+          action: 'recorded', // 更新狀態為 'recorded'
+          calls: projectCalls,
+        };
+      } else {
+        // 如果沒有匹配的撥號物件，則更新專案狀態為 'start'
+        logWithTimestamp(`專案 ${project.projectId} 沒有匹配的撥號物件，更新狀態為 'start'`);
+        projectArray[projectIndex] = {
+          ...project,
+          action: 'start',
+          calls: [],
+        };
+      }
+    });
 
     // 將匹配的撥號物件傳送給 WebSocket Server 的所有連線客戶端
     clientWsProjectOutbound.clients.forEach((client) => {
-      client.send(JSON.stringify(matchingCallResult));
+      client.send(JSON.stringify(matchingCallResults));
     });
 
   } catch (error) {
@@ -168,24 +179,6 @@ setInterval(async () => {
 
 
 
-async function startGetOutboundList(callFlowId, projectId, callState) {
-  const outboundDataList = await getOutbound(callFlowId, projectId, callState);
-  if (!outboundDataList.success) {
-    errorWithTimestamp(`Error in outboundDataList for project ${projectId}`);
-    throw new Error(`Error in outboundDataList for project ${projectId}`);
-  }
-  if (outboundDataList.data.list.length > 0) {
-    logWithTimestamp(`專案 ${projectId} / ${callFlowId} 有可撥打的名單，開始撥打電話`);
-    const outboundData = outboundDataList.data.list[0];
-    const { phone, id: customerId } = outboundData.customer
-
-    // await projectOutbound(grant_type, client_id, client_secret, firstOutboundData.data[0].phone, projectId, customerId);
-    return { phone, customerId };
-  } else {
-    logWithTimestamp(`專案 ${projectId} / ${callFlowId} 沒有可撥打的名單，等待下一次檢查`);
-    return null; // 沒有可撥打的名單
-  }
-};
 
 
 
@@ -193,7 +186,13 @@ async function startGetOutboundList(callFlowId, projectId, callState) {
 
 
 
-
+// 專案撥打電話的邏輯
+// 這個函式會先取得 3CX 的 token，然後取得撥號者的分機資訊，接著檢查撥打者分配的代理人狀態
+// 如果代理人狀態是空閒的，就可以撥打電話，否則就不撥打並回傳相應的訊息
+// 如果撥打成功，則將請求加入佇列並返回成功訊息
+// 如果在過程中發生錯誤，則記錄錯誤並返回錯誤訊息
+// 注意：這個函式需要傳入必要的參數，包括 grant_type、client_id、client_secret、phone、projectId 和 customerId
+// 如果缺少任何必要的參數，則記錄錯誤並返回 400 錯誤
 async function projectOutbound(
   grant_type,
   client_id,
@@ -331,6 +330,11 @@ async function projectOutbound(
   }
 }
 
+
+
+
+
+
 // projectOutbound API
 router.post('/', async function(req, res, next) {
   const { grant_type, client_id, client_secret, callFlowId, projectId, action } = req.body;
@@ -347,4 +351,4 @@ router.post('/', async function(req, res, next) {
   });
 });
 
-module.exports = { router, clientWsProjectOutbound };
+module.exports = { router, clientWsProjectOutbound, projectOutbound };
