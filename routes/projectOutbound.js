@@ -38,8 +38,15 @@ function projectsIntervalAutoOutbound() {
   // logWithTimestamp('目前專案列表:', projects);
 
   projects.forEach(async (project, projectIndex, projectArray ) => {
+    if (project.action === 'stop') {
+      // 如果專案狀態為 'stop'，掛斷電話 並把該專案從佇列中移除
+      logWithTimestamp(`專案 ${project.projectId} 狀態為 'stop'，掛斷電話 並把該專案從佇列中移除`);
+      // 從佇列中移除該專案
+      projectArray.splice(projectIndex, 1);
+      return;
+    }
+
     const called = await autoOutbound(project, projectIndex, projectArray);
-    console.log('autoOutbound called:', called);
     if (called) {
       globalToken = called.addInActiveCallQueue.token; // 更新 globalToken
       projectArray[projectIndex].currentMakeCall = called.currentMakeCall // 更新專案的 currentMakeCall 狀態
@@ -55,10 +62,16 @@ setInterval(async () => {
 
   // logWithTimestamp(`每 ${CALL_GAP_TIME} 秒檢查一次撥號狀態`);
   if (!globalToken) { // 如果沒有 token 就回傳給所有客戶端一個空陣列
-    logWithTimestamp('沒有 globalToken，回傳空陣列');
-    // clientWsProjectOutbound.clients.forEach((client) => {
-    //   client.send(JSON.stringify([]));
-    // });
+    logWithTimestamp('沒有 globalToken，回傳 projects');
+    clientWsProjectOutbound.clients.forEach((client) => {
+      const toClientProjects = projects.map(project => ({
+        projectId: project.projectId,
+        action: project.action,
+        callFlowId: project.callFlowId,
+        projectCallData: project.projectCallData,
+      }));
+      client.send(JSON.stringify(toClientProjects));
+    });
     return;
   };
 
@@ -71,7 +84,10 @@ setInterval(async () => {
     // 這邊的狀況是 token 失效了，這時候我們要清除 globalToken 讓流程持續
     if (!fetch_getActiveCalls.success && fetch_getActiveCalls.error.status === 401) {
       logWithTimestamp('token 失效，清除 globalToken 讓流程持續');
-      globalToken = null; // 清除 token
+      clientWsProjectOutbound.clients.forEach((client) => {
+        logWithTimestamp('自動外撥專案實況',projects);
+        client.send(JSON.stringify(projects));
+      });
       return
     }
 
@@ -105,7 +121,13 @@ setInterval(async () => {
     // 將匹配的撥號物件傳送給 WebSocket Server 的所有連線客戶端
     clientWsProjectOutbound.clients.forEach((client) => {
       logWithTimestamp('自動外撥專案實況',projects);
-      client.send(JSON.stringify(projects));
+      const toClientProjects = projects.map(project => ({
+        projectId: project.projectId,
+        action: project.action,
+        callFlowId: project.callFlowId,
+        projectCallData: project.projectCallData,
+      }));
+      client.send(JSON.stringify(toClientProjects));
     });
 
   } catch (error) {
@@ -121,7 +143,18 @@ router.post('/', async function(req, res, next) {
     errorWithTimestamp('Missing required fields');
     res.status(400).send('Missing required fields');
   }
-
+  // 檢查專案是否已存在
+  const existingProject = projects.find(project => project.projectId === projectId);
+  if (existingProject) {
+    errorWithTimestamp(`Project with ID ${projectId} already exists`);
+    return res.status(400).send(`Project with ID ${projectId} already exists`);
+  }
+  // 如果專案不存在，則新增該專案
+  if (action !== 'active' && action !== 'stop' && action !== 'pause' && action !== 'waiting' && action !== 'recording') {
+    errorWithTimestamp(`Invalid action: ${action}. Action must be one of 'active', 'stop', 'pause', 'waiting', or 'recording'`);
+    return res.status(400).send(`Invalid action: ${action}. Action must be one of 'active', 'stop', 'pause', 'waiting', or 'recording'`);
+  }
+  // 新增專案到佇列
   projects.push({ grant_type, client_id, client_secret, callFlowId, projectId, action, projectCallData: null, });
 
   res.status(200).send({
