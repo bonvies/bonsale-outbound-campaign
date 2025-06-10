@@ -20,7 +20,7 @@ const { projectsMatchingCallFn } = require('../components/projectsMatchingCallFn
 
 require('dotenv').config();
 
-const CALL_GAP_TIME = parseInt(process.env.CALL_GAP_TIME) || 3; // 預設 3 秒
+const CALL_GAP_TIME = Number(process.env.CALL_GAP_TIME) || 1; // 預設 1 秒
 
 // 創建 WebSocket Server
 const clientWsProjectOutbound = new WebSocket.Server({ noServer: true });
@@ -45,20 +45,19 @@ setInterval(async () => {
     return;
   }
   logWithTimestamp(`開始自動撥號，總共有 ${projects.length} 個專案`);
-  // console.log(projects);
+  logWithTimestamp('目前專案列表:', projects);
+
   projects.forEach(async (project, projectIndex, projectArray ) => {
     const called = await autoOutbound(project, projectIndex, projectArray);
-    //  console.log('測試 addInActiveCallQueue ',called);
+    console.log('autoOutbound called:', called);
     if (called) {
       globalToken = called.addInActiveCallQueue.token; // 更新 globalToken
+      projectArray[projectIndex].currentMakeCall = called.currentMakeCall // 更新專案的 currentMakeCall 狀態
       activeCallQueue.push(called.addInActiveCallQueue);
     }
-  //  activeCallQueue.push(called.addInActiveCallQueue);
   });
 
-
-
-  logWithTimestamp(`每 ${CALL_GAP_TIME} 秒檢查一次撥號狀態`);
+  // logWithTimestamp(`每 ${CALL_GAP_TIME} 秒檢查一次撥號狀態`);
   if (!globalToken) { // 如果沒有 token 就回傳給所有客戶端一個空陣列
     logWithTimestamp('沒有 globalToken，回傳空陣列');
     // clientWsProjectOutbound.clients.forEach((client) => {
@@ -118,14 +117,10 @@ setInterval(async () => {
 }, CALL_GAP_TIME * 1000); // 每 CALL_GAP_TIME 秒檢查一次撥號狀態
 
 
- 
-
-
-
-// projectOutbound API
+// projectOutbound API - 將專案加入自動撥號佇列
 router.post('/', async function(req, res, next) {
   const { grant_type, client_id, client_secret, callFlowId, projectId, action } = req.body;
-  // action 有三種狀態 active, stop, pause waiting recording
+  // action 有 5 種狀態 active, stop, pause, waiting, recording
   if (!grant_type || !client_id || !client_secret || !callFlowId || !projectId || !action) {
     errorWithTimestamp('Missing required fields');
     return res.status(400).send('Missing required fields');
@@ -135,6 +130,95 @@ router.post('/', async function(req, res, next) {
 
   res.status(200).send({
     message: 'Request projectOutbound successfully'
+  });
+});
+
+router.put('/', async function(req, res, next) {
+  const { grant_type, client_id, client_secret, callFlowId, projectId, action } = req.body; // action 有 5 種狀態 active, stop, pause, waiting, recording
+  if (!grant_type || !client_id || !client_secret || !projectId || !callFlowId || !customerId || !phone || !action) {
+    errorWithTimestamp('Missing required fields');
+    return res.status(400).send('Missing required fields');
+  }
+
+  // 檢查專案是否已存在
+  const existingProject = projects.find(project => project.projectId === projectId);
+  if (existingProject) {
+    errorWithTimestamp(`Project with ID ${projectId} already exists`);
+    return res.status(400).send(`Project with ID ${projectId} already exists`);
+  }
+
+  // 如果已存在，則更新該專案的資料，但保留原本的 projectCallData
+  if (existingProject) {
+    const updatedProject = {
+      grant_type,
+      client_id,
+      client_secret,
+      callFlowId,
+      projectId,
+      action,
+      projectCallData: existingProject.projectCallData // 保留原本的 projectCallData
+    };
+    const index = projects.findIndex(project => project.projectId === projectId);
+    if (index !== -1) {
+      projects[index] = updatedProject;
+    }
+    return res.status(200).send({
+      message: `Project ${projectId} updated successfully`,
+      project: updatedProject
+    });
+  }
+});
+
+router.patch('/:projectId', async function(req, res, next) {
+  const { projectId } = req.params;
+  const { action } = req.body; 
+  // action 有 5 種狀態 active, start, stop, pause, calling, waiting, recording
+  // active: 激活撥號
+  // start: 開始撥號
+  // stop: 停止撥號
+  // pause: 暫停撥號
+  // calling: 正在撥號
+  // waiting: 等待撥號
+  // recording: 開始紀錄
+  if (!projectId || !action) {
+    errorWithTimestamp('Missing required fields');
+    return res.status(400).send('Missing required fields');
+  }
+
+  // projectOutbound API - 找到對應的專案並更新 action 狀態
+  const projectIndex = projects.findIndex(project => project.projectId === projectId);
+  if (projectIndex === -1) {
+    errorWithTimestamp(`Project with ID ${projectId} not found`);
+    return res.status(404).send(`Project with ID ${projectId} not found`);
+  }
+
+  projects[projectIndex].action = action;
+
+  res.status(200).send({
+    message: `Project ${projectId} updated successfully`,
+    project: projects[projectIndex]
+  });
+});
+
+// projectOutbound API - 找到對應的專案並刪除
+router.delete('/:projectId', async function(req, res, next) {
+  const { projectId } = req.params;
+  if (!projectId) {
+    errorWithTimestamp('Missing required fields');
+    return res.status(400).send('Missing required fields');
+  }
+
+  // 找到對應的專案並刪除
+  const projectIndex = projects.findIndex(project => project.projectId === projectId);
+  if (projectIndex === -1) {
+    errorWithTimestamp(`Project with ID ${projectId} not found`);
+    return res.status(404).send(`Project with ID ${projectId} not found`);
+  }
+
+  projects.splice(projectIndex, 1);
+
+  res.status(200).send({
+    message: `Project ${projectId} deleted successfully`
   });
 });
 

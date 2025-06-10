@@ -131,7 +131,7 @@ async function projectOutboundMakeCall(
     const fetch_makeCall = await makeCall(token, queueDn, device_id, 'outbound', phone);
     if (!fetch_makeCall.success) return res.status(fetch_makeCall.error.status).send(fetch_makeCall.error); // 錯誤處理
     const currentCall = fetch_makeCall.data;
-    // logWithTimestamp('撥打電話請求:', currentCall);
+    logWithTimestamp('撥打電話請求:', currentCall);
 
     // 撥打電話的時候 會回傳 一個 callid 我們可以利用這個 callid 來查詢當前的撥打狀態
     const { callid } = currentCall.result;
@@ -139,7 +139,15 @@ async function projectOutboundMakeCall(
     return {
       success: true,
       message: 'Request outboundCampaigm successfully',
-      addInActiveCallQueue: { token, callid, id, phone, callFlowId, projectId, customerId }
+      addInActiveCallQueue: { token, callid, id, phone, callFlowId, projectId, customerId },
+      currentMakeCall: {
+        id: currentCall.result.id,
+        token,
+        callid: currentCall.result.callid,
+        dn: currentCall.result.dn,
+        device_id: currentCall.result.device_id,
+        party_caller_id: currentCall.result.party_caller_id
+      }
     };
   } catch (error) {
     errorWithTimestamp('Error in POST /projectOutbound:', error);
