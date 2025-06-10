@@ -5,6 +5,14 @@ const host = process.env.BONSALE_HOST;
 const xApiKey = process.env.BONSALE_X_API_KEY;
 const xApiSecret = process.env.BONSALE_X_API_SECRET;
 
+const axiosBonsaleInstance = axios.create({
+  baseURL: host,
+  headers: {
+    'X-API-KEY': xApiKey,
+    'X-API-SECRET': xApiSecret,
+  },
+});
+
 async function getOutbound (callFlowId, projectId, callStatus, limit = 1) {
   try {
     const queryString = new URLSearchParams({
@@ -13,12 +21,7 @@ async function getOutbound (callFlowId, projectId, callStatus, limit = 1) {
       callStatus,
       limit
     }).toString();
-    const outboundResult = await axios.get(`${host}/outbound?${queryString}`, {
-      headers: {
-        'X-API-KEY': xApiKey,
-        'X-API-SECRET': xApiSecret,
-      }
-    });
+    const outboundResult = await axiosBonsaleInstance.get(`${host}/outbound?${queryString}`);
     const outboundProject = outboundResult.data;
     // console.log('參與者資訊：', response.data);
     return { success: true, data: outboundProject }; // 返回成功
@@ -30,31 +33,31 @@ async function getOutbound (callFlowId, projectId, callStatus, limit = 1) {
 
 async function updateCallStatus (projectId, customerId, callStatus) {
   try {
-    const response = await axios.put(`${host}/project/${projectId}/customer/${customerId}/callStatus`, { callStatus });
+    const response = await axiosBonsaleInstance.put(`${host}/project/${projectId}/customer/${customerId}/callStatus`, { callStatus });
     return { success: true, data: response.data }; // 返回成功
   } catch (error) {
-    console.error('Error getOutbound request:', error.message);
-    return { success: false, error: { status: error.status, message: `Error getOutbound request: ${error.message}` } }; // 返回錯誤
+    console.error('Error updateCallStatus request:', error.message);
+    return { success: false, error: { status: error.status, message: `Error updateCallStatus request: ${error.message}` } }; // 返回錯誤
   }
 }
 
-async function updateBonsaleProjectAutoDialExecute (projectId) {
+async function updateBonsaleProjectAutoDialExecute (projectId, callFlowId) {
   try {
-    const response = await axios.put(`${host}/project/${projectId}/auto-dial/${callFlowId}/execute`, {});
+    const response = await axiosBonsaleInstance.put(`${host}/project/${projectId}/auto-dial/${callFlowId}/execute`, {});
     return { success: true, data: response.data }; // 返回成功
   } catch (error) {
-    console.error('Error getOutbound request:', error.message);
-    return { success: false, error: { status: error.status, message: `Error getOutbound request: ${error.message}` } }; // 返回錯誤
+    console.error('Error updateBonsaleProjectAutoDialExecute request:', error.message);
+    return { success: false, error: { status: error.status, message: `Error updateBonsaleProjectAutoDialExecute request: ${error.message}` } }; // 返回錯誤
   }
 }
 
 async function updateDialUpdate (projectId, customerId) {
   try {
-    const response = await axios.put(`${host}/project/${projectId}/customer/${customerId}/dialUpdate`, {});
+    const response = await axiosBonsaleInstance.put(`${host}/project/${projectId}/customer/${customerId}/dialUpdate`, {});
     return { success: true, data: response.data }; // 返回成功
   } catch (error) {
-    console.error('Error getOutbound request:', error.message);
-    return { success: false, error: { status: error.status, message: `Error getOutbound request: ${error.message}` } }; // 返回錯誤
+    console.error('Error updateDialUpdate request:', error.message);
+    return { success: false, error: { status: error.status, message: `Error updateDialUpdate request: ${error.message}` } }; // 返回錯誤
   }
 }
 
@@ -84,8 +87,8 @@ async function updateVisitRecord (
     const response = await axios.put(`${host}/project/customer/visit`, payload);
     return { success: true, data: response.data }; // 返回成功
   } catch (error) {
-    console.error('Error getOutbound request:', error.message);
-    return { success: false, error: { status: error.status, message: `Error getOutbound request: ${error.message}` } }; // 返回錯誤
+    console.error('Error updateVisitRecord request:', error.message);
+    return { success: false, error: { status: error.status, message: `Error updateVisitRecord request: ${error.message}` } }; // 返回錯誤
   }
 }
 
