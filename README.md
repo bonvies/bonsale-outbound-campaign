@@ -10,7 +10,7 @@ The application uses the following environment variables. These should be define
 |------------------------|-----------------------------------------------|----------------------------------------------|
 | `HTTP_HOST_3CX`        | `https://<YOUR 3CX DOMAIN>`                   | The host URL for the 3CX HTTP API.           |
 | `WS_HOST_3CX`          | `wss://<YOUR 3CX DOMAIN>`                     | The host URL for the 3CX WebSocket API.      |
-| `CALL_GAP_TIME`        | `3`                                           | The time gap (in seconds) between calls.     |
+| `CALL_GAP_TIME`        | `1`                                           | The time gap (in seconds) between calls.     |
 | `HTTP_PORT`            | `3020`                                        | The port for the HTTP server.                |
 | `BONSALE_HOST`         | `https://<YOUR BONSALE_HOST>/service`         | The host URL for the Bonsale API.            |
 | `BONSALE_X_API_KEY`    | `YOUR X_API_KEY`                              | The API key for the Bonsale API.             |

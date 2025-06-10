@@ -16,12 +16,30 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
   
   projects.forEach(async (project, projectIndex, projectArray ) => {
     // 專案狀態控制
-    if (project.action === 'paused') {
+    if (project.action === 'pause') {
       // 如果專案狀態為 'paused'，要把電話掛斷
-      logWithTimestamp(`專案 ${project.projectId} 狀態為 'paused'，不進行任何操作`);
+      logWithTimestamp(`專案 ${project.projectId} 狀態為 'pause'，不進行任何操作 並且掛斷電話`);
       const { token, id, dn } = project.currentMakeCall;
       await hangupCall(token, dn, id);
+      // 更新專案狀態為 'paused'
+      projectArray[projectIndex] = {
+        ...project,
+        action: 'paused',
+      };
       return;
+    } else if (project.action === 'paused') {
+      logWithTimestamp(`專案 ${project.projectId} 狀態為 'paused'，不進行任何操作`);
+      return;
+    }
+    if (project.action === 'stop') {
+      // 如果專案狀態為 'stop'，掛斷電話 並把該專案從佇列中移除
+      logWithTimestamp(`專案 ${project.projectId} 狀態為 'stop'，掛斷電話 並把該專案從佇列中移除`);
+      const { token, id, dn } = project.currentMakeCall;
+      await hangupCall(token, dn, id);
+      // 從佇列中移除該專案
+      projectArray.splice(projectIndex, 1);
+      return;
+
     }
 
 
