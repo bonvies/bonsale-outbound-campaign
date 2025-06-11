@@ -8,6 +8,7 @@ const { autoOutbound } = require('../components/autoOutbound.js');
 
 const { logWithTimestamp, errorWithTimestamp } = require('../util/timestamp.js');
 const { projectsMatchingCallFn } = require('../components/projectsMatchingCallFn.js');
+const { hangupCall } = require('../services/callControl.js');
 
 require('dotenv').config();
 
@@ -38,14 +39,6 @@ function projectsIntervalAutoOutbound() {
   // logWithTimestamp('目前專案列表:', projects);
 
   projects.forEach(async (project, projectIndex, projectArray ) => {
-    if (project.action === 'stop') {
-      // 如果專案狀態為 'stop'，掛斷電話 並把該專案從佇列中移除
-      logWithTimestamp(`專案 ${project.projectId} 狀態為 'stop'，掛斷電話 並把該專案從佇列中移除`);
-      // 從佇列中移除該專案
-      projectArray.splice(projectIndex, 1);
-      return;
-    }
-
     const called = await autoOutbound(project, projectIndex, projectArray);
     if (called) {
       globalToken = called.addInActiveCallQueue.token; // 更新 globalToken

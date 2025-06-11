@@ -10,8 +10,8 @@ const { projectOutboundMakeCall } = require('./projectOutboundMakeCall.js');
 async function startGetOutboundList(callFlowId, projectId, callState) {
   const outboundDataList = await getOutbound(callFlowId, projectId, callState);
   if (!outboundDataList.success) {
-    errorWithTimestamp(`Error in outboundDataList for project ${projectId}`);
-    throw new Error(`Error in outboundDataList for project ${projectId}`);
+    errorWithTimestamp(`outboundDataList - ${outboundDataList.error.message}`);
+    throw new Error(`outboundDataList - ${outboundDataList.error.message}`);
   }
   if (outboundDataList.data.list.length > 0) {
     logWithTimestamp(`專案 ${projectId} / ${callFlowId} 有可撥打的名單，開始撥打電話`);
@@ -28,63 +28,92 @@ async function startGetOutboundList(callFlowId, projectId, callState) {
 
 // 撥打邏輯
 async function autoOutbound(project, projectIndex, projectArray) {
-  logWithTimestamp('開始自動撥號專案:', project.projectId);
-  if ( project.length === 0 ) {
-    errorWithTimestamp('autoOutbound Missing required project fields');
-    return;
-  }
-  // 檢查專案 action 狀態
-  const { grant_type, client_id, client_secret, callFlowId, projectId, action } = project;
+  try {
+    // 檢查專案 action 狀態
+    const { grant_type, client_id, client_secret, callFlowId, projectId, action } = project;
 
-  if (action === 'active') {
-    logWithTimestamp(`開始撥打專案: ${projectId} / ${callFlowId}`);
+    if (action === 'active') {
+      logWithTimestamp(`開始撥打專案: ${projectId} / ${callFlowId}`);
 
-    // 先抓 callState = 0 名單
-    const firstOutboundData = await startGetOutboundList(callFlowId, projectId, 0);
-    if (firstOutboundData) {
-      const { phone, customerId } = firstOutboundData;
-      // logWithTimestamp(`第 1 輪 ---- 專案 ${projectId} / ${customerId} 有可撥打的名單: ${phone}，開始撥打電話`);
-      // 撥打電話
-      const firstOutbounCall = await projectOutboundMakeCall(
-        grant_type,
-        client_id,
-        client_secret,
-        phone,
-        callFlowId,
-        projectId,
-        customerId,
-        action
-      );
-      projectArray[projectIndex] = {
-        ...project,
-        action: 'waiting' // 撥打完第一輪後，將 action 改為 waiting
-      };
+      // 先抓 callState = 0 名單
+      const firstOutboundData = await startGetOutboundList(callFlowId, projectId, 0);
+      if (firstOutboundData) {
+        const { phone, customerId } = firstOutboundData;
+        // logWithTimestamp(`第 1 輪 ---- 專案 ${projectId} / ${customerId} 有可撥打的名單: ${phone}，開始撥打電話`);
+        // 撥打電話
+        const firstOutbounCall = await projectOutboundMakeCall(
+          grant_type,
+          client_id,
+          client_secret,
+          phone,
+          callFlowId,
+          projectId,
+          customerId,
+          action
+        );
+        projectArray[projectIndex] = {
+          ...project,
+          action: 'waiting' // 撥打完第一輪後，將 action 改為 waiting
+        };
 
-      return firstOutbounCall; // 返回撥打結果
+        // 如果撥打失敗，將專案狀態設為 error
+        if (!firstOutbounCall.success) {
+          errorWithTimestamp(`專案 ${projectId} 撥打電話失敗: ${firstOutbounCall.message}`);
+          projectArray[projectIndex] = {
+            ...project,
+            action: 'error', // 將專案狀態設為 error
+          };
+          return;
+        }
+
+        logWithTimestamp(`專案 ${projectId} 撥打電話成功: ${firstOutbounCall.message}`);
+        return firstOutbounCall; // 返回撥打結果
+      }
+      
+      // 如果沒有可撥打的初始名單，就檢查是 callState = 2 名單
+      const secondOutboundData = await startGetOutboundList(callFlowId, projectId, 2);
+      if (secondOutboundData) {
+        const { phone, customerId } = secondOutboundData;
+        // logWithTimestamp(`第 2 輪 ---- 專案 ${projectId} / ${customerId} 有可撥打的名單: ${phone}，開始撥打電話`);
+        // 撥打電話
+        const secondOutboundCall = await projectOutboundMakeCall(
+          grant_type,
+          client_id,
+          client_secret,
+          phone,
+          callFlowId,
+          projectId,
+          customerId,
+          action
+        );
+
+        // 如果撥打失敗，將專案狀態設為 error
+        if (!secondOutboundCall.success) {
+          errorWithTimestamp(`專案 ${projectId} 撥打電話失敗: ${secondOutboundCall.message}`);
+          projectArray[projectIndex] = {
+            ...project,
+            action: 'error', // 將專案狀態設為 error
+          };
+          return;
+        }
+
+        projectArray[projectIndex] = {
+          ...project,
+          action: 'waiting' // 撥打完第一輪後，將 action 改為 waiting
+        };
+        return secondOutboundCall; // 返回撥打結果
+
+        
+      }
     }
+  } catch (error) {
+    errorWithTimestamp(`autoOutbound error: ${error.message}`);
     
-    // 如果沒有可撥打的初始名單，就檢查是 callState = 2 名單
-    const secondOutboundData = await startGetOutboundList(callFlowId, projectId, 2);
-    if (secondOutboundData) {
-      const { phone, customerId } = secondOutboundData;
-      // logWithTimestamp(`第 2 輪 ---- 專案 ${projectId} / ${customerId} 有可撥打的名單: ${phone}，開始撥打電話`);
-      // 撥打電話
-      const secondOutboundCall = await projectOutboundMakeCall(
-        grant_type,
-        client_id,
-        client_secret,
-        phone,
-        callFlowId,
-        projectId,
-        customerId,
-        action
-      );
-      projectArray[projectIndex] = {
-        ...project,
-        action: 'waiting' // 撥打完第一輪後，將 action 改為 waiting
-      };
-      return secondOutboundCall; // 返回撥打結果
-    }
+    projectArray[projectIndex] = {
+      ...project,
+      action: 'error', // 將專案狀態設為 error
+      error: error.message, // 儲存錯誤訊息
+    };
   }
 }
 
