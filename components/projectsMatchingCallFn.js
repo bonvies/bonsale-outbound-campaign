@@ -21,16 +21,18 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
       logWithTimestamp(`專案 ${project.projectId} 狀態為 'pause'，不進行任何操作 並且掛斷電話`);
       const { token, id, dn } = project.currentMakeCall;
       await hangupCall(token, dn, id);
+
+      // TODO 掛斷後將舊值紀錄至 Bonsale
+
+
       // 更新專案狀態為 'paused'
       projectArray[projectIndex] = {
         ...project,
         action: 'paused',
       };
       return;
-    } else if (project.action === 'paused') {
-      logWithTimestamp(`專案 ${project.projectId} 狀態為 'paused'，不進行任何操作`);
-      return;
-    }
+    } 
+
     if (project.action === 'stop') {
       // 如果專案狀態為 'stop'，掛斷電話 並把該專案從佇列中移除
       logWithTimestamp(`專案 ${project.projectId} 狀態為 'stop'，掛斷電話 並把該專案從佇列中移除`);
@@ -39,7 +41,6 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
       // 從佇列中移除該專案
       projectArray.splice(projectIndex, 1);
       return;
-
     }
 
 
@@ -151,7 +152,7 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
       logWithTimestamp(`專案 ${project.projectId} 沒有匹配的撥號物件，更新狀態為 'active'`);
       projectArray[projectIndex] = {
         ...project,
-        action: 'active',
+        action: project === 'paused'? project.action : 'active', // 暫停並掛斷電話後要繼續跑流程紀錄等等 只是不要在撥打電話而已
         projectCallData: null, // 清除 projectCallData
         currentMakeCall: null, // 清除 currentMakeCall 狀態
       };
