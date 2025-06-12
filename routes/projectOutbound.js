@@ -4,11 +4,14 @@ const router = express.Router();
 const {
   activeCalls,
 } = require('../services/xApi.js');
+const lodash = require('lodash');
 const { autoOutbound } = require('../components/autoOutbound.js');
+const throttledAutoOutbound = lodash.throttle(autoOutbound, 30, { trailing: false });
 
 const { logWithTimestamp, errorWithTimestamp } = require('../util/timestamp.js');
 const { projectsMatchingCallFn } = require('../components/projectsMatchingCallFn.js');
 const { hangupCall } = require('../services/callControl.js');
+
 
 require('dotenv').config();
 
@@ -39,7 +42,10 @@ function projectsIntervalAutoOutbound() {
   // logWithTimestamp('目前專案列表:', projects);
 
   projects.forEach(async (project, projectIndex, projectArray ) => {
-    const called = await autoOutbound(project, projectIndex, projectArray);
+    // 隨機延遲 0-50 毫秒再執行 throttledAutoOutbound
+    const randomDelay = Math.floor(Math.random() * 101); // 0~50 ms
+    await new Promise(resolve => setTimeout(resolve, randomDelay));
+    const called = await throttledAutoOutbound(project, projectIndex, projectArray);
     if (called) {
       globalToken = called.addInActiveCallQueue.token; // 更新 globalToken
       projectArray[projectIndex].currentMakeCall = called.currentMakeCall // 更新專案的 currentMakeCall 狀態
