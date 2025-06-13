@@ -119,7 +119,7 @@ setInterval(async () => {
 
     // 將匹配的撥號物件傳送給 WebSocket Server 的所有連線客戶端
     clientWsProjectOutbound.clients.forEach((client) => {
-      logWithTimestamp('自動外撥專案實況',projects);
+      // logWithTimestamp('自動外撥專案實況',projects);
       const toClientProjects = projects.map(project => ({
         projectId: project.projectId,
         action: project.action,
