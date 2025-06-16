@@ -272,9 +272,13 @@ router.delete('/:projectId', async function(req, res, next) {
   }
   projects.splice(projectIndex, 1);
 
+  // 如果刪除後沒有專案，或所有專案都沒有 currentMakeCall/token，則清空 globalToken
+  if (projects.length === 0 || !projects.some(p => p.currentMakeCall && p.currentMakeCall.token)) {
+    globalToken = null;
+  }
+
   res.status(200).send({
     message: `Project ${projectId} delete successfully`,
-    project: projects[projectIndex]
   });
 });
 
