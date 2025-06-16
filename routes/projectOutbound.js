@@ -11,6 +11,7 @@ const throttledAutoOutbound = lodash.throttle(autoOutbound, 30, { trailing: fals
 const { logWithTimestamp, errorWithTimestamp } = require('../util/timestamp.js');
 const { projectsMatchingCallFn } = require('../components/projectsMatchingCallFn.js');
 const { mainActionType } = require('../util/mainActionType.js');
+const { hangupCall } = require('../services/callControl.js');
 
 
 require('dotenv').config();
@@ -38,8 +39,6 @@ function projectsIntervalAutoOutbound() {
     logWithTimestamp('沒有專案，跳過自動撥號');
     return;
   }
-  // logWithTimestamp(`開始自動撥號，總共有 ${projects.length} 個專案`);
-  // logWithTimestamp('目前專案列表:', projects);
 
   projects.forEach(async (project, projectIndex, projectArray ) => {
     // 隨機延遲 0-50 毫秒再執行 throttledAutoOutbound
@@ -218,6 +217,31 @@ router.patch('/:projectId', async function(req, res, next) {
   if (!['active', 'start', 'pause'].includes(action)) {
     errorWithTimestamp(`Invalid action: ${action}. Action must be one of 'active', 'start', 'pause'`);
     return res.status(400).send(`Invalid action: ${action}. Action must be one of 'active', 'start', 'pause'`);
+  }
+
+  // 如果狀態是 'pause'，則要掛斷電話
+  if (action === 'pause') {
+    const project = projects.find(project => project.projectId === projectId);
+    if (!project) {
+      errorWithTimestamp(`Project with ID ${projectId} not found`);
+      return res.status(404).send(`Project with ID ${projectId} not found`);
+    }
+
+    // 如果專案有正在撥打的電話，則掛斷電話
+    if (project.currentMakeCall && project.currentMakeCall.token) {
+      try {
+        console.log(project)
+        const { token, dn, id } = project.currentMakeCall;
+        await hangupCall(token, dn, id);
+        logWithTimestamp(`Project ${projectId} call with callid ${project.currentMakeCall.callid} has been hung up`);
+        // 清除專案的 projectCallData 和 currentMakeCall 狀態
+        project.projectCallData = null;
+        project.currentMakeCall = null;
+      } catch (error) {
+        errorWithTimestamp(`Failed to hang up call for project ${projectId}: ${error.message}`);
+        return res.status(500).send(`Failed to hang up call for project ${projectId}: ${error.message}`);
+      }
+    }
   }
 
   // projectOutbound API - 找到對應的專案並更新 action 狀態

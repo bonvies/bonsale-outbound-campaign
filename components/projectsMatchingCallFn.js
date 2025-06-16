@@ -13,40 +13,11 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
     const updatePromises = []; // 儲存要推送的 Promises API
     projects.forEach(async (project, projectIndex, projectArray ) => {
       // 專案狀態控制
-      if (project.action === 'pause') {
-        // 如果專案狀態為 'paused' 就不要撥電話
-        logWithTimestamp(`專案 ${project.projectId} 狀態為 'pause'，不進行任何操作 並且掛斷電話`);
-        if (project.currentMakeCall) {
-          const { token, id, dn } = project.currentMakeCall;
-          await hangupCall(token, dn, id);
-          projectArray[projectIndex] = {
-            ...project,
-            action: 'pause - hangup', // 將專案狀態設為 'pause - hangup' 代表已經掛斷電話
-            error: null, // 清除錯誤狀態
-          };
-        };
+      if (mainActionType(project.action) === 'pause' || mainActionType(project.action) === 'error') {
+        // 如果專案狀態為 'paused' 或 'error' 就不要撥電話
+        logWithTimestamp(`專案 ${project.projectId} 狀態為 'pause'，不進行任何操作`);
         return;
       }
-
-      if (project.action === 'error') {
-        // 如果專案狀態為 'error'，3 秒後將專案狀態設為 'start' 讓他重新嘗試 因為很多時候 都是因為 3cx 的 API 來不及回應
-        logWithTimestamp(`專案 ${project.projectId} 狀態為 'error'，重新改為 'start'`);
-
-        if (project.action === 'error - restart') {
-          // 將專案狀態設為 'start' 讓他重新嘗試
-          projectArray[projectIndex] = {
-            ...project,
-            action: mainActionType(project.action) === 'pause'? project.action : 'start',
-            error: null, // 清除錯誤狀態
-          };
-        }
-        projectArray[projectIndex] = {
-          ...project,
-          action: mainActionType(project.action) === 'pause' ? project.action : 'error - restart', // 將專案狀態設為 'error - waiting' 讓他重新嘗試
-        };
-        return;
-      }
-
 
       // 檢查專案是否有匹配的撥號物件
       const projectCalls = matchingCallResults.find(item => item.projectId === project.projectId);
@@ -62,7 +33,7 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
           projectCallData: projectCalls,
         };
       } else if (project.projectCallData) { // 找到之前記錄在專案的撥打資料 
-        if (project.action === 'waiting') {
+        if (mainActionType(project.action) === 'waiting') {
           logWithTimestamp(`專案 ${project.projectId} 狀態為 'waiting'，代表已經 mackCall，還在等待 3cx 的 agent 回應`);
           return;
         }
@@ -142,16 +113,16 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
 
         projectArray[projectIndex] = {
           ...project,
-          action: mainActionType(project.action) === 'pause' ? project.action : 'recording', // 更新狀態為 'recording'
+          action: mainActionType(project.action) === 'pause' ? mainActionType(project.action) : 'recording', // 更新狀態為 'recording'
           projectCallData: null,
           currentMakeCall: null, // 清除 currentMakeCall 狀態
         };
       } else {
-        if (project.action === 'waiting') {
+        if (mainActionType(project.action) === 'waiting') {
           logWithTimestamp(`專案 ${project.projectId} 狀態為 'waiting'，代表已經 mackCall，還在等待 3cx 的 agent 回應`);
           return;
         }
-        if (project.action === 'error' || project.action === 'errored') {
+        if (mainActionType(project.action) === 'error') {
           logWithTimestamp(`專案 ${project.projectId} 狀態為 'error' 或 'errored'，代表撥打失敗，等待重新嘗試`);
           return;
         }
