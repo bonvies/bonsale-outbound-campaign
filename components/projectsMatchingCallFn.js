@@ -36,13 +36,13 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
           // 將專案狀態設為 'start' 讓他重新嘗試
           projectArray[projectIndex] = {
             ...project,
-            action: 'start',
+            action: mainActionType(project.action) === 'pause'? project.action : 'start',
             error: null, // 清除錯誤狀態
           };
         }
         projectArray[projectIndex] = {
           ...project,
-          action: 'error - restart', // 將專案狀態設為 'error - waiting' 讓他重新嘗試
+          action: mainActionType(project.action) === 'pause' ? project.action : 'error - restart', // 將專案狀態設為 'error - waiting' 讓他重新嘗試
         };
         return;
       }
@@ -58,7 +58,7 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
         // 更新專案狀態為 'active' 並儲存匹配的撥號物件
         projectArray[projectIndex] = {
           ...project,
-          action: mainActionType(project.action) === 'pause'? project.action : 'calling',
+          action: mainActionType(project.action) === 'pause' ? project.action : 'calling',
           projectCallData: projectCalls,
         };
       } else if (project.projectCallData) { // 找到之前記錄在專案的撥打資料 
@@ -142,7 +142,7 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
 
         projectArray[projectIndex] = {
           ...project,
-          action: mainActionType(project.action) === 'pause'? project.action : 'recording', // 更新狀態為 'recording'
+          action: mainActionType(project.action) === 'pause' ? project.action : 'recording', // 更新狀態為 'recording'
           projectCallData: null,
           currentMakeCall: null, // 清除 currentMakeCall 狀態
         };
@@ -160,7 +160,7 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
         logWithTimestamp(`專案 ${project.projectId} 沒有匹配的撥號物件，更新狀態為 'active'`);
         projectArray[projectIndex] = {
           ...project,
-          action: mainActionType(project.action) === 'pause'? project.action : 'active', // 暫停並掛斷電話後要繼續跑流程紀錄等等 只是不要在撥打電話而已
+          action: mainActionType(project.action) === 'pause' ? project.action : 'active', // 暫停並掛斷電話後要繼續跑流程紀錄等等 只是不要在撥打電話而已
           projectCallData: null, // 清除 projectCallData
           currentMakeCall: null, // 清除 currentMakeCall 狀態
         };
