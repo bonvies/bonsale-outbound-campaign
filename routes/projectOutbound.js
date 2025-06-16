@@ -10,7 +10,7 @@ const throttledAutoOutbound = lodash.throttle(autoOutbound, 30, { trailing: fals
 
 const { logWithTimestamp, errorWithTimestamp } = require('../util/timestamp.js');
 const { projectsMatchingCallFn } = require('../components/projectsMatchingCallFn.js');
-const { hangupCall } = require('../services/callControl.js');
+const { mainActionType } = require('../util/mainActionType.js');
 
 
 require('dotenv').config();
@@ -161,6 +161,7 @@ router.post('/', async function(req, res, next) {
   });
 });
 
+// projectOutbound API - 改變專案資料
 router.put('/:projectId', async function(req, res, next) {
   const { projectId: paramsProjectId } = req.params;
   const { grant_type, client_id, client_secret, callFlowId, projectId } = req.body;
@@ -178,14 +179,14 @@ router.put('/:projectId', async function(req, res, next) {
 
   // 如果已存在，則更新該專案的資料，但保留原本的 projectCallData
   const updatedProject = {
-      grant_type,
-      client_id,
-      client_secret,
-      callFlowId,
-      projectId,
-      action: existingProject.action, // 保留原本的 action 狀態
-      projectCallData: existingProject.projectCallData // 保留原本的 projectCallData
-    };
+    grant_type,
+    client_id,
+    client_secret,
+    callFlowId,
+    projectId,
+    action: existingProject.action, // 保留原本的 action 狀態
+    projectCallData: existingProject.projectCallData // 保留原本的 projectCallData
+  };
   const index = projects.findIndex(project => project.projectId === paramsProjectId);
   if (index !== -1) {
     projects[index] = updatedProject;
@@ -196,20 +197,27 @@ router.put('/:projectId', async function(req, res, next) {
   });
 });
 
+// projectOutbound API - 改變專案狀態
 router.patch('/:projectId', async function(req, res, next) {
   const { projectId } = req.params;
   const { action } = req.body; 
-  // action 有 5 種狀態 active, start, stop, pause, calling, waiting, recording
+  // action 有 以下種狀態
   // active: 激活撥號
   // start: 開始撥號
   // stop: 停止撥號
-  // pause || paused: 暫停撥號 (因為暫停會同步掛斷電話 但又不能不斷觸發掛斷電話，所以這邊用 pause 或 paused 來表示)
+  // pause: 暫停撥號
   // calling: 正在撥號
   // waiting: 等待撥號
   // recording: 開始紀錄
   if (!projectId || !action) {
     errorWithTimestamp('Missing required fields');
     res.status(400).send('Missing required fields');
+  }
+
+  // 限制只能改變特定 action 狀態
+  if (!['active', 'start', 'pause'].includes(action)) {
+    errorWithTimestamp(`Invalid action: ${action}. Action must be one of 'active', 'start', 'pause'`);
+    return res.status(400).send(`Invalid action: ${action}. Action must be one of 'active', 'start', 'pause'`);
   }
 
   // projectOutbound API - 找到對應的專案並更新 action 狀態
@@ -223,6 +231,49 @@ router.patch('/:projectId', async function(req, res, next) {
 
   res.status(200).send({
     message: `Project ${projectId} updated successfully`,
+    project: projects[projectIndex]
+  });
+});
+
+// projectOutbound API - 刪除專案
+router.delete('/:projectId', async function(req, res, next) {
+  const { projectId } = req.params;
+  // action 有 以下種狀態
+  // active: 激活撥號
+  // start: 開始撥號
+  // stop: 停止撥號
+  // pause: 暫停撥號
+  // calling: 正在撥號
+  // waiting: 等待撥號
+  // recording: 開始紀錄
+  if (!projectId) {
+    errorWithTimestamp('Missing required fields');
+    res.status(400).send('Missing required fields');
+  }
+
+  // 檢查專案是否已存在
+  const existingProject = projects.find(project => project.projectId === projectId);
+  if (!existingProject) {
+    errorWithTimestamp(`Project with ID ${projectId} is not exists`);
+    return res.status(400).send(`Project with ID ${projectId} is not exists`);
+  }
+
+  // 限制只有專案狀態為 pause 才能刪除
+  if (mainActionType(existingProject.action) !== 'pause') {
+    errorWithTimestamp(`Project with ID ${projectId} is not in 'pause' state, cannot be deleted`);
+    return res.status(400).send(`Project with ID ${projectId} is not in 'pause' state, cannot be deleted`);
+  }
+  
+  // 從專案列表中刪除該專案
+  const projectIndex = projects.findIndex(project => project.projectId === projectId);
+  if (projectIndex === -1) {
+    errorWithTimestamp(`Project with ID ${projectId} not found`);
+    return res.status(404).send(`Project with ID ${projectId} not found`);
+  }
+  projects.splice(projectIndex, 1);
+
+  res.status(200).send({
+    message: `Project ${projectId} delete successfully`,
     project: projects[projectIndex]
   });
 });

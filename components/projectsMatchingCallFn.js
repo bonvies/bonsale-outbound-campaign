@@ -28,18 +28,6 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
         return;
       }
 
-      if (project.action === 'stop') {
-        // 如果專案狀態為 'stop'，掛斷電話 並把該專案從佇列中移除
-        logWithTimestamp(`專案 ${project.projectId} 狀態為 'stop'，掛斷電話 並把該專案從佇列中移除`);
-        if (project.currentMakeCall) {
-          const { token, id, dn } = project.currentMakeCall;
-          await hangupCall(token, dn, id);
-        }
-        // 從佇列中移除該專案
-        projectArray.splice(projectIndex, 1);
-        return;
-      }
-
       if (project.action === 'error') {
         // 如果專案狀態為 'error'，3 秒後將專案狀態設為 'start' 讓他重新嘗試 因為很多時候 都是因為 3cx 的 API 來不及回應
         logWithTimestamp(`專案 ${project.projectId} 狀態為 'error'，重新改為 'start'`);
