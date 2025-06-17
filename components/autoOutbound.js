@@ -59,7 +59,11 @@ async function autoOutbound(project, projectIndex, projectArray) {
         // 如果撥打失敗，將專案狀態設為 error
         if (!firstOutbounCall.success) {
           errorWithTimestamp(`專案 ${projectId} 撥打電話失敗: ${firstOutbounCall.message}`);
-          projectArray[projectIndex].action = 'error'; // 將專案狀態設為 error
+          projectArray[projectIndex] = {
+            ...project,
+            action: 'error', // 將專案狀態設為 error
+            error: firstOutbounCall.message, // 儲存錯誤訊息
+          };
           return;
         }
 
@@ -90,6 +94,7 @@ async function autoOutbound(project, projectIndex, projectArray) {
           projectArray[projectIndex] = {
             ...project,
             action: 'error', // 將專案狀態設為 error
+            error: secondOutboundCall.message, // 儲存錯誤訊息
           };
           return;
         }
@@ -105,7 +110,7 @@ async function autoOutbound(project, projectIndex, projectArray) {
     }
   } catch (error) {
     errorWithTimestamp(`autoOutbound error: ${error.message}`);
-    
+
     projectArray[projectIndex] = {
       ...project,
       action: 'error', // 將專案狀態設為 error
