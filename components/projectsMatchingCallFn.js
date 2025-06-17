@@ -13,11 +13,7 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
     const updatePromises = []; // 儲存要推送的 Promises API
     projects.forEach(async (project, projectIndex, projectArray ) => {
       // 專案狀態控制
-      if (mainActionType(project.action) === 'pause' || mainActionType(project.action) === 'error') {
-        // 如果專案狀態為 'paused' 或 'error' 就不要撥電話
-        logWithTimestamp(`專案 ${project.projectId} 狀態為 'pause'，不進行任何操作`);
-        return;
-      }
+
 
       // 檢查專案是否有匹配的撥號物件
       const projectCalls = matchingCallResults.find(item => item.projectId === project.projectId);

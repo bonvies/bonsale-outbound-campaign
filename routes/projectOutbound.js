@@ -256,14 +256,11 @@ router.patch('/:projectId', async function(req, res, next) {
       // 如果專案有正在撥打的電話，則掛斷電話
       if (project.currentMakeCall && project.currentMakeCall.token) {
         try {
-          console.log('當前專案',project)
           const { token, dn, id } = project.currentMakeCall;
           await hangupCall(token, dn, id);
           logWithTimestamp(`Project ${projectId} call with callid ${project.currentMakeCall.callid} has been hung up`);
-          // 清除專案的 projectCallData 和 currentMakeCall 狀態
-          project.projectCallData = null;
+          // 清除專案的 currentMakeCall 狀態
           project.currentMakeCall = null;
-          console.log('專案已清除 currentMakeCall 狀態', project);
         } catch (error) {
           errorWithTimestamp(`Failed to hang up call for project ${projectId}: ${error.message}`);
           return res.status(500).send(`Failed to hang up call for project ${projectId}: ${error.message}`);
