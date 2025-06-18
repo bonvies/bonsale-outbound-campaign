@@ -75,7 +75,7 @@ router.get('/project/:projectId/auto-dial/:callFlowId', async function(req, res,
   }
 });
 
-// 取得 Bonsale 專案資料
+// 取得 Bonsale 專案名單資料
 router.get('/project', async function(req, res, next) {
   try {
     const queryString = new URLSearchParams(req.query).toString();
@@ -86,6 +86,20 @@ router.get('/project', async function(req, res, next) {
   } catch (error) {
     console.error('Error in GET /project:', error.message);
     return res.status(error.status).send(`Error in GET /project: ${error.message}`);
+  }
+});
+
+// 取得 Bonsale 專案名單總頁數資料
+router.get('/project/count/customer', async function(req, res, next) {
+  try {
+    const queryString = new URLSearchParams(req.query).toString();
+    console.log(`${host}/project/count/customer?${queryString}`)
+    const autoDialData = await axiosBonsaleInstance.get(`${host}/project/count/customer?${queryString}`);
+    const autoDialProject = autoDialData.data;
+    return res.status(200).send(autoDialProject);
+  } catch (error) {
+    console.error('Error in GET /project/count/customer:', error.message);
+    return res.status(error.status).send(`Error in GET /project/count/customer: ${error.message}`);
   }
 });
 
