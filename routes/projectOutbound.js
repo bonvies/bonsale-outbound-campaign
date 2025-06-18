@@ -8,10 +8,12 @@ const lodash = require('lodash');
 const { autoOutbound } = require('../components/autoOutbound.js');
 const throttledAutoOutbound = lodash.throttle(autoOutbound, 30, { trailing: false });
 
-const { logWithTimestamp, errorWithTimestamp } = require('../util/timestamp.js');
+const { logWithTimestamp, warnWithTimestamp, errorWithTimestamp } = require('../util/timestamp.js');
 const { projectsMatchingCallFn } = require('../components/projectsMatchingCallFn.js');
 const { mainActionType } = require('../util/mainActionType.js');
 const { hangupCall } = require('../services/callControl.js');
+
+const { get3cxToken } = require('../services/callControl.js');
 
 
 require('dotenv').config();
@@ -35,6 +37,27 @@ let globalToken = null;
 const projects = []; // 儲存專案資訊
 const activeCallQueue = []; // 儲存活躍撥號的佇列
 
+async function getGlobalToken() {
+  const grant_type = process.env.ADMIN_3CX_GRANT_TYPE;
+  const client_id = process.env.ADMIN_3CX_CLIENT_ID;
+  const client_secret = process.env.ADMIN_3CX_CLIENT_SECRET;
+  if (!grant_type || !client_id || !client_secret) {
+    errorWithTimestamp('Missing required fields for 3CX token');
+    return null; // 如果缺少必要的欄位，就不進行後續操作
+  }
+
+  const fetch_get3cxToken = await get3cxToken(grant_type, client_id, client_secret);
+
+    if (!fetch_get3cxToken.success) {
+      errorWithTimestamp('獲取 3CX token 失敗:', fetch_get3cxToken.error.message);
+      return null; // 如果獲取 token 失敗，就不進行後續操作
+    };
+
+    const token = fetch_get3cxToken.data.access_token; // 更新 globalToken
+
+  return token;
+}
+
 function projectsIntervalAutoOutbound() {
   // 如果沒有專案，就不進行撥號
   if (projects.length === 0) {
@@ -48,7 +71,6 @@ function projectsIntervalAutoOutbound() {
     await new Promise(resolve => setTimeout(resolve, randomDelay));
     const called = await throttledAutoOutbound(project, projectIndex, projectArray);
     if (called) {
-      globalToken = called.addInActiveCallQueue.token; // 更新 globalToken
       projectArray[projectIndex].currentMakeCall = called.currentMakeCall // 更新專案的 currentMakeCall 狀態
       activeCallQueue.push(called.addInActiveCallQueue);
     }
@@ -68,17 +90,17 @@ setInterval(async () => {
   projectsIntervalAutoOutbound()
 
   // logWithTimestamp(`每 ${CALL_GAP_TIME} 秒檢查一次撥號狀態`);
-  if (!globalToken) { // 如果沒有 token 就回傳給所有客戶端一個空陣列
-    logWithTimestamp('沒有 globalToken，回傳 projects');
-    clientWsProjectOutbound.clients.forEach((client) => {
-      const toClientProjects = projects.map(project => ({
-        projectId: project.projectId,
-        action: project.action,
-        callFlowId: project.callFlowId,
-        projectCallData: project.projectCallData,
-      }));
-      client.send(JSON.stringify(toClientProjects));
-    });
+  if (!globalToken) { // 如果沒有 token 就 get3cxToken
+    logWithTimestamp('沒有 globalToken，嘗試獲取 3CX token');
+    const fetch_get3cxToken = await getGlobalToken();
+
+    if (!fetch_get3cxToken) {
+      errorWithTimestamp('獲取 3CX token 失敗，無法繼續執行自動撥號');
+      return; // 如果獲取 token 失敗，就不進行後續操作
+    };
+
+    globalToken = fetch_get3cxToken; // 更新 globalToken
+    logWithTimestamp('獲取 3CX token 成功:', globalToken);
     return;
   };
 
@@ -88,14 +110,17 @@ setInterval(async () => {
     logWithTimestamp('獲取目前活躍的撥號狀態:', fetch_getActiveCalls);
 
     // 如果 token 失效，清除 globalToken
-    // 這邊的狀況是 token 失效了，這時候我們要清除 globalToken 讓流程持續
+    // 這邊的狀況是 token 失效了，這時候我們要重新拿 token 讓流程持續
     if (!fetch_getActiveCalls.success && fetch_getActiveCalls.error.status === 401) {
-      logWithTimestamp('token 失效，清除 globalToken 讓流程持續');
-      globalToken = null;
-      clientWsProjectOutbound.clients.forEach((client) => {
-        logWithTimestamp('自動外撥專案實況',projects);
-        client.send(JSON.stringify(projects));
-      });
+      warnWithTimestamp('3CX token 失效，重新拿 token 讓流程持續');
+    const fetch_get3cxToken = await getGlobalToken();
+
+    if (!fetch_get3cxToken) {
+      errorWithTimestamp('獲取 3CX token 失敗，無法繼續執行自動撥號');
+      return; // 如果獲取 token 失敗，就不進行後續操作
+    };
+
+    globalToken = fetch_get3cxToken; // 更新 globalToken
       return
     }
 
@@ -322,11 +347,6 @@ router.delete('/:projectId', async function(req, res, next) {
       return res.status(404).send(`Project with ID ${projectId} not found`);
     }
     projects.splice(projectIndex, 1);
-
-    // 如果刪除後沒有專案，或所有專案都沒有 currentMakeCall/token，則清空 globalToken
-    if (projects.length === 0 || !projects.some(p => p.currentMakeCall && p.currentMakeCall.token)) {
-      globalToken = null;
-    }
 
     res.status(200).send({
       message: `Project ${projectId} delete successfully`,
