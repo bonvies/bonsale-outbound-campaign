@@ -180,7 +180,7 @@ router.post('/', async function(req, res, next) {
   isApiRunning = true; // API 開始，設為 true
   try {
     const { grant_type, client_id, client_secret, callFlowId, projectId, action } = req.body;
-    // action 有 5 種狀態 active, stop, pause, waiting, recording
+
     if (!grant_type || !client_id || !client_secret || !callFlowId || !projectId || !action) {
       errorWithTimestamp('Missing required fields');
       res.status(400).send('Missing required fields');
@@ -191,10 +191,10 @@ router.post('/', async function(req, res, next) {
       errorWithTimestamp(`Project with ID ${projectId} already exists`);
       return res.status(400).send(`Project with ID ${projectId} already exists`);
     }
-    // 如果專案不存在，則新增該專案
-    if (action !== 'active' && action !== 'stop' && action !== 'pause' && action !== 'waiting' && action !== 'recording') {
-      errorWithTimestamp(`Invalid action: ${action}. Action must be one of 'active', 'stop', 'pause', 'waiting', or 'recording'`);
-      return res.status(400).send(`Invalid action: ${action}. Action must be one of 'active', 'stop', 'pause', 'waiting', or 'recording'`);
+    // 檢查 action 狀態是否正確
+    if (action !== 'active' && action !== 'start' && action !== 'pause') {
+      errorWithTimestamp(`Invalid action: ${action}. Action must be one of 'active', 'start', 'pause'`);
+      return res.status(400).send(`Invalid action: ${action}. Action must be one of 'active', 'stop', 'pause'`);
     }
     // 新增專案到佇列
     projects.push({ grant_type, client_id, client_secret, callFlowId, projectId, action, projectCallData: null, });
