@@ -32,5 +32,10 @@
   "bugs": {
     "url": "https://github.com/Aruminiya/bonsale-outbound-campaign/issues"
   },
-  "homepage": "https://github.com/Aruminiya/bonsale-outbound-campaign#readme"
+  "homepage": "https://github.com/Aruminiya/bonsale-outbound-campaign#readme",
+  "devDependencies": {
+    "@eslint/js": "^9.29.0",
+    "eslint": "^9.29.0",
+    "globals": "^16.2.0"
+  }
 }
