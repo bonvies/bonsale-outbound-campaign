@@ -31,7 +31,10 @@ async function projectOutboundMakeCall(
   const id = uuidv4();
   if (!grant_type || !client_id || !client_secret || !phone || !projectId || !customerId) {
     errorWithTimestamp('Missing required fields');
-    return res.status(400).send('Missing required fields');
+    return {
+      success: false,
+      message: 'Missing required fields',
+    };
   }
   try {
     // 先取得 3CX token 

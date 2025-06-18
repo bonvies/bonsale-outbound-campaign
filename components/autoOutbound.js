@@ -1,6 +1,13 @@
-const { getOutbound } = require('../services/bonsale.js');
 const { logWithTimestamp, errorWithTimestamp } = require('../util/timestamp.js');
 const { projectOutboundMakeCall } = require('./projectOutboundMakeCall.js');
+const {
+  getOutbound,
+  updateCallStatus,
+  updateBonsaleProjectAutoDialExecute,
+  updateDialUpdate,
+} = require('../services/bonsale.js');
+const { mainActionType } = require('../util/mainActionType.js');
+const e = require('express');
 
 // 根據 callFlowId 和 projectId 獲取可撥打的名單
 // 這個函式會先嘗試獲取 callState = 0 的名單，如果沒有則嘗試獲取 callState = 2 的名單
@@ -26,20 +33,86 @@ async function startGetOutboundList(callFlowId, projectId, callState) {
   }
 };
 
+function autoOutboundWatchDog(action, project) {
+  const { projectId, callFlowId } = project;
+
+  if(mainActionType(action) === 'active') {
+    logWithTimestamp(`專案 ${projectId} / ${callFlowId} 狀態為 'active'，開始撥打電話`);
+    return true; // 可以撥打電話
+  } else if (mainActionType(action) === 'waiting') {
+    logWithTimestamp(`專案 ${projectId} / ${callFlowId} 狀態為 'waiting'，已經 mackCall，還在等待 3cx 的 agent 回應`);
+    
+    const currentTime = new Date().getTime();
+    const lastCallTime = project._makeCallTimes || 0; // 如果沒有撥打時間，則默認為 0
+    const timeDifference = currentTime - lastCallTime; // 計算時間差
+
+    if (timeDifference >= 60 * 1500) { // 如果時間差大於等於 1.5 分鐘
+      logWithTimestamp(`警告：專案 ${projectId} / ${callFlowId} 已經等待超過 1 分鐘，開始強制更新狀態 callState === 2`);
+      const { customerId } = project._toCall;
+
+      if (!customerId) {
+        errorWithTimestamp(`找不到 customerId，無法強制更新狀態`);
+        return false;
+      }
+
+      const updatePromises = [];
+      updatePromises.push(
+        updateCallStatus(
+          projectId,
+          customerId,
+          2, // 強制紀錄該專案為 callState === 2 狀態
+        ),
+        updateBonsaleProjectAutoDialExecute(
+          projectId,
+          callFlowId
+        ),
+        updateDialUpdate(
+          projectId,
+          customerId
+        )
+      );
+
+      // 等待所有的 API 請求完成
+      // 逐行（依序）執行
+      (async () => {
+        try {
+          for (const promise of updatePromises) {
+            await promise; // 一個一個來
+          }
+        } catch (err) {
+          errorWithTimestamp(`強制更新狀態時發生錯誤: ${err.message}`);
+        }
+      })();
+
+      projectArray[projectIndex] = {
+        ...project,
+        action: 'active',
+        error: null, // 清除錯誤訊息
+      };
+    }
+    
+    return false; // 不需要再撥打電話
+  } else if (mainActionType(action) === 'pause') {
+    logWithTimestamp(`專案 ${projectId} / ${callFlowId} 狀態為 'pause'，已經暫停撥打`);
+    return false; // 不需要再撥打電話
+  } else {
+    return false; // 其他狀態不撥打電話
+  }
+}
+
 // 撥打邏輯
 async function autoOutbound(project, projectIndex, projectArray) {
   try {
     // 檢查專案 action 狀態
     const { grant_type, client_id, client_secret, callFlowId, projectId, action } = project;
 
-    if (action === 'active') {
-      logWithTimestamp(`開始撥打專案: ${projectId} / ${callFlowId}`);
-
+    if (autoOutboundWatchDog(action, project)) {
       // 先抓 callState = 0 名單
       const firstOutboundData = await startGetOutboundList(callFlowId, projectId, 0);
       if (firstOutboundData) {
         const { phone, customerId } = firstOutboundData;
-        // logWithTimestamp(`第 1 輪 ---- 專案 ${projectId} / ${customerId} 有可撥打的名單: ${phone}，開始撥打電話`);
+        logWithTimestamp(`第 1 輪 ---- 專案 ${projectId} / ${customerId} 有可撥打的名單: ${phone}，開始撥打電話`);
+
         // 撥打電話
         const firstOutbounCall = await projectOutboundMakeCall(
           grant_type,
@@ -51,10 +124,6 @@ async function autoOutbound(project, projectIndex, projectArray) {
           customerId,
           action
         );
-        projectArray[projectIndex] = {
-          ...project,
-          action: 'waiting' // 撥打完第一輪後，將 action 改為 waiting
-        };
 
         // 如果撥打失敗，將專案狀態設為 error
         if (!firstOutbounCall.success) {
@@ -67,6 +136,14 @@ async function autoOutbound(project, projectIndex, projectArray) {
           return;
         }
 
+        projectArray[projectIndex] = {
+          ...project,
+          action: 'waiting', // 撥打完第一輪後，將 action 改為 waiting
+          _toCall: { phone, customerId },
+          _makeCallTimes: new Date().getTime(), // 記錄撥打時間戳記
+          error: null, // 清除錯誤訊息
+        };
+
         logWithTimestamp(`專案 ${projectId} 撥打電話成功: ${firstOutbounCall.message}`);
         return firstOutbounCall; // 返回撥打結果
       }
@@ -75,7 +152,8 @@ async function autoOutbound(project, projectIndex, projectArray) {
       const secondOutboundData = await startGetOutboundList(callFlowId, projectId, 2);
       if (secondOutboundData) {
         const { phone, customerId } = secondOutboundData;
-        // logWithTimestamp(`第 2 輪 ---- 專案 ${projectId} / ${customerId} 有可撥打的名單: ${phone}，開始撥打電話`);
+        logWithTimestamp(`第 2 輪 ---- 專案 ${projectId} / ${customerId} 有可撥打的名單: ${phone}，開始撥打電話`);
+
         // 撥打電話
         const secondOutboundCall = await projectOutboundMakeCall(
           grant_type,
@@ -101,14 +179,17 @@ async function autoOutbound(project, projectIndex, projectArray) {
 
         projectArray[projectIndex] = {
           ...project,
-          action: 'waiting' // 撥打完第一輪後，將 action 改為 waiting
+          action: 'waiting', // 撥打完第一輪後，將 action 改為 waiting
+          _toCall: { phone, customerId },
+          _makeCallTimes: new Date().getTime(), // 記錄撥打時間戳記
+          error: null, // 清除錯誤訊息
         };
-        return secondOutboundCall; // 返回撥打結果
 
-        
+        return secondOutboundCall; // 返回撥打結果
       }
     }
   } catch (error) {
+    console.error(`autoOutbound 發生錯誤: ${error}`);
     errorWithTimestamp(`autoOutbound error: ${error.message}`);
 
     projectArray[projectIndex] = {

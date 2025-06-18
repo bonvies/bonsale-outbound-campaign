@@ -77,8 +77,7 @@ setInterval(async () => {
         callFlowId: project.callFlowId,
         projectCallData: project.projectCallData,
       }));
-      const newSetProjects = lodash.uniqBy(toClientProjects, 'projectId'); // 去除重複的專案
-      client.send(JSON.stringify(newSetProjects));
+      client.send(JSON.stringify(toClientProjects));
     });
     return;
   };
@@ -129,15 +128,14 @@ setInterval(async () => {
 
     // 將匹配的撥號物件傳送給 WebSocket Server 的所有連線客戶端
     clientWsProjectOutbound.clients.forEach((client) => {
-      // logWithTimestamp('自動外撥專案實況',projects);
+      logWithTimestamp('自動外撥專案實況',projects);
       const toClientProjects = projects.map(project => ({
         projectId: project.projectId,
         action: project.action,
         callFlowId: project.callFlowId,
         projectCallData: project.projectCallData,
       }));
-      const newSetProjects = lodash.uniqBy(toClientProjects, 'projectId'); // 去除重複的專案
-      client.send(JSON.stringify(newSetProjects));
+      client.send(JSON.stringify(toClientProjects));
     });
 
   } catch (error) {
