@@ -65,16 +65,23 @@ function projectsIntervalAutoOutbound() {
     return;
   }
 
-  projects.forEach(async (project, projectIndex, projectArray ) => {
-    // 隨機延遲 0-50 毫秒再執行 throttledAutoOutbound
-    const randomDelay = Math.floor(Math.random() * 101); // 0~50 ms
-    await new Promise(resolve => setTimeout(resolve, randomDelay));
-    const called = await throttledAutoOutbound(project, projectIndex, projectArray);
-    if (called) {
-      projectArray[projectIndex].currentMakeCall = called.currentMakeCall // 更新專案的 currentMakeCall 狀態
-      activeCallQueue.push(called.addInActiveCallQueue);
+  (async () => {
+    for (let projectIndex = 0; projectIndex < projects.length; projectIndex++) {
+      const project = projects[projectIndex];
+      // 隨機延遲 0-50 毫秒再執行 throttledAutoOutbound
+      const randomDelay = Math.floor(Math.random() * 101); // 0~50 ms
+      await new Promise(resolve => setTimeout(resolve, randomDelay));
+      try {
+        const called = await throttledAutoOutbound(project, projectIndex, projects);
+        if (called) {
+          projects[projectIndex].currentMakeCall = called.currentMakeCall; // 更新專案的 currentMakeCall 狀態
+          activeCallQueue.push(called.addInActiveCallQueue);
+        }
+      } catch (err) {
+        errorWithTimestamp(`自動外撥專案 [${project.projectId}] 發生錯誤:`, err.message);
+      }
     }
-  });
+  })();
 }
 
 // 每 CALL_GAP_TIME 秒 進行自動撥號 並 檢查撥號狀態
@@ -259,7 +266,7 @@ router.patch('/:projectId', async function(req, res, next) {
     // recording: 開始紀錄
     if (!projectId || !action) {
       errorWithTimestamp('Missing required fields');
-      res.status(400).send('Missing required fields');
+      return res.status(400).send('Missing required fields');
     }
 
     // 限制只能改變特定 action 狀態
@@ -295,7 +302,7 @@ router.patch('/:projectId', async function(req, res, next) {
     const projectIndex = projects.findIndex(project => project.projectId === projectId);
     if (projectIndex === -1) {
       errorWithTimestamp(`Project with ID ${projectId} not found`);
-      res.status(404).send(`Project with ID ${projectId} not found`);
+      return res.status(404).send(`Project with ID ${projectId} not found`);
     }
 
     projects[projectIndex].action = action;

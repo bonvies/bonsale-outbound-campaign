@@ -9,8 +9,8 @@ const { mainActionType } = require('../util/mainActionType.js');
 
 async function projectsMatchingCallFn(projects, matchingCallResults) {
   try {
-    const updatePromises = []; // 儲存要推送的 Promises API
-    projects.forEach(async (project, projectIndex, projectArray ) => {
+    for (let projectIndex = 0; projectIndex < projects.length; projectIndex++) {
+      const project = projects[projectIndex];
       // 檢查專案是否有匹配的撥號物件
       const projectCalls = matchingCallResults.find(item => item.projectId === project.projectId);
       // logWithTimestamp(`檢查專案 ${project.projectId} 是否有匹配的撥號物件:`, projectCalls);
@@ -19,7 +19,7 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
         // 如果有匹配的撥號物件，則更新專案狀態
         // logWithTimestamp(`專案 ${project.projectId} 有匹配的撥號物件:`, projectCalls);
         // 更新專案狀態為 'active' 並儲存匹配的撥號物件
-        projectArray[projectIndex] = {
+        projects[projectIndex] = {
           ...project,
           action: mainActionType(project.action) === 'pause' ? project.action : 'calling',
           projectCallData: projectCalls,
@@ -27,11 +27,12 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
       } else if (project.projectCallData) { // 找到之前記錄在專案的撥打資料 
         if (mainActionType(project.action) === 'waiting') {
           logWithTimestamp(`專案 ${project.projectId} 狀態為 'waiting'，代表已經 mackCall，還在等待 3cx 的 agent 回應`);
-          return;
+          continue;
         }
 
         // 如果沒有匹配的撥號物件，但專案中有 projectCallData 'active' 並清除 projectCallData
         // logWithTimestamp(`專案 ${project.projectId} 沒有匹配的撥號物件`);
+        const updatePromises = [];
         updatePromises.push(
           updateCallStatus(
             project.projectCallData.projectId,
@@ -97,17 +98,15 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
 
         // 等待所有的 API 請求完成
         // 逐行（依序）執行
-        (async () => {
-          try {
-            for (const promise of updatePromises) {
-              await promise; // 一個一個來
-            }
-          } catch (err) {
-            errorWithTimestamp(`強制更新狀態時發生錯誤: ${err.message}`);
+        try {
+          for (const promise of updatePromises) {
+            await promise; // 一個一個來
           }
-        })();
+        } catch (err) {
+          errorWithTimestamp(`強制更新狀態時發生錯誤: ${err.message}`);
+        }
 
-        projectArray[projectIndex] = {
+        projects[projectIndex] = {
           ...project,
           action: mainActionType(project.action) === 'pause' ? project.action : 'recording', // 更新狀態為 'recording'
           projectCallData: null,
@@ -116,23 +115,23 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
       } else {
         if (mainActionType(project.action) === 'waiting') {
           logWithTimestamp(`專案 ${project.projectId} 狀態為 'waiting'，代表已經 mackCall，還在等待 3cx 的 agent 回應`);
-          return;
+          continue;
         }
         if (mainActionType(project.action) === 'error') {
           logWithTimestamp(`專案 ${project.projectId} 狀態為 'error'，代表撥打失敗，等待重新嘗試`);
-          return;
+          continue;
         }
 
         // 如果沒有匹配的撥號物件，則更新專案狀態為 'active'
         logWithTimestamp(`專案 ${project.projectId} 沒有匹配的撥號物件，更新狀態為 'active'`);
-        projectArray[projectIndex] = {
+        projects[projectIndex] = {
           ...project,
           action: mainActionType(project.action) === 'pause' ? project.action : 'active', // 暫停並掛斷電話後要繼續跑流程紀錄等等 只是不要在撥打電話而已
           projectCallData: null, // 清除 projectCallData
           currentMakeCall: null, // 清除 currentMakeCall 狀態
         };
       }
-    });
+    }
   } catch (error) {
     errorWithTimestamp(`projectsMatchingCallFn 發生錯誤: ${error.message}`);
     throw new Error(`projectsMatchingCallFn 發生錯誤: ${error.message}`);
