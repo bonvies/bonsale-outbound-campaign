@@ -132,7 +132,14 @@ async function projectOutboundMakeCall(
     // 到這邊準備工作完成 可以開始撥打電話了
     // logWithTimestamp(`撥打者 ${client_id} / 準備撥給 ${phone} 手機`);
     const fetch_makeCall = await makeCall(token, queueDn, device_id, 'outbound', phone);
-    if (!fetch_makeCall.success) return res.status(fetch_makeCall.error.status).send(fetch_makeCall.error); // 錯誤處理
+    if (!fetch_makeCall.success) {
+      errorWithTimestamp('Failed to makeCall');
+      return {
+        success: false,
+        message: fetch_makeCall.error.message,
+        status: fetch_makeCall.error.status,
+      };
+    } // 錯誤處理
     const currentCall = fetch_makeCall.data;
     // logWithTimestamp('撥打電話請求:', currentCall);
 
