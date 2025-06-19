@@ -7,7 +7,6 @@ const {
   updateDialUpdate,
 } = require('../services/bonsale.js');
 const { mainActionType } = require('../util/mainActionType.js');
-const e = require('express');
 
 // 根據 callFlowId 和 projectId 獲取可撥打的名單
 // 這個函式會先嘗試獲取 callState = 0 的名單，如果沒有則嘗試獲取 callState = 2 的名單
@@ -33,7 +32,7 @@ async function startGetOutboundList(callFlowId, projectId, callState) {
   }
 };
 
-function autoOutboundWatchDog(action, project) {
+function autoOutboundWatchDog(action, project, projectIndex, projectArray) {
   const { projectId, callFlowId } = project;
 
   if(mainActionType(action) === 'active') {
@@ -106,7 +105,7 @@ async function autoOutbound(project, projectIndex, projectArray) {
     // 檢查專案 action 狀態
     const { grant_type, client_id, client_secret, callFlowId, projectId, action } = project;
 
-    if (autoOutboundWatchDog(action, project)) {
+    if (autoOutboundWatchDog(action, project, projectIndex, projectArray)) {
       // 先抓 callState = 0 名單
       const firstOutboundData = await startGetOutboundList(callFlowId, projectId, 0);
       if (firstOutboundData) {

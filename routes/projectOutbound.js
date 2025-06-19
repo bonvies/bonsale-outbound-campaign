@@ -176,7 +176,7 @@ setInterval(async () => {
 }, CALL_GAP_TIME * 1000); // 每 CALL_GAP_TIME 秒檢查一次撥號狀態
 
 // projectOutbound API - 將專案加入自動撥號佇列
-router.post('/', async function(req, res, next) {
+router.post('/', async function(req, res) {
   isApiRunning = true; // API 開始，設為 true
   try {
     const { grant_type, client_id, client_secret, callFlowId, projectId, action } = req.body;
@@ -209,7 +209,7 @@ router.post('/', async function(req, res, next) {
 });
 
 // projectOutbound API - 改變專案資料
-router.put('/:projectId', async function(req, res, next) {
+router.put('/:projectId', async function(req, res) {
   isApiRunning = true; // API 開始，設為 true
   try {
     const { projectId: paramsProjectId } = req.params;
@@ -251,7 +251,7 @@ router.put('/:projectId', async function(req, res, next) {
 });
 
 // projectOutbound API - 改變專案狀態
-router.patch('/:projectId', async function(req, res, next) {
+router.patch('/:projectId', async function(req, res) {
   isApiRunning = true; // API 開始，設為 true
   try {
     const { projectId } = req.params;
@@ -317,7 +317,7 @@ router.patch('/:projectId', async function(req, res, next) {
 });
 
 // projectOutbound API - 刪除專案
-router.delete('/:projectId', async function(req, res, next) {
+router.delete('/:projectId', async function(req, res) {
   isApiRunning = true; // API 開始，設為 true
   try {
     const { projectId } = req.params;

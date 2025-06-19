@@ -10,7 +10,7 @@ const {
   getUsers
 } = require('../services/xApi.js');
 
-const { logWithTimestamp, warnWithTimestamp, errorWithTimestamp } = require('../util/timestamp.js');
+const { warnWithTimestamp, errorWithTimestamp } = require('../util/timestamp.js');
 
 // 專案撥打電話的邏輯
 // 這個函式會先取得 3CX 的 token，然後取得撥號者的分機資訊，接著檢查撥打者分配的代理人狀態

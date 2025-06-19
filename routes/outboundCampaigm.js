@@ -43,8 +43,15 @@ function createWs (token, phones, dn, device_id, caller, client_id) {
       // 進行初次撥打電話
       const phoneNumbersArray = phones.split(',');
       console.log(`撥打者 ${client_id} / 準備撥給 第 ${nowCall + 1} 隻手機: ${phoneNumbersArray[nowCall]}`);
-      const fetch_makeCall = await makeCall(token, dn, device_id, 'outbound', phone);
-      if (!fetch_makeCall.success) return res.status(fetch_makeCall.error.status).send(fetch_makeCall.error); // 錯誤處理
+      const fetch_makeCall = await makeCall(token, dn, device_id, 'outbound', phoneNumbersArray[nowCall]);
+      if (!fetch_makeCall.success) {
+        console.error('Failed to makeCall');
+        return {
+          success: false,
+          message: fetch_makeCall.error.message,
+          status: fetch_makeCall.error.status,
+        };
+      } // 錯誤處理
       const currentCall = fetch_makeCall.data;
       console.log('撥打電話請求:', currentCall);
     });
@@ -107,8 +114,15 @@ function createWs (token, phones, dn, device_id, caller, client_id) {
             // 等待 ${callGapTime} 秒後撥打下一個電話
             setTimeout(async () => {
               console.log(`撥打者 ${client_id} / 準備撥給 第 ${nowCall} 手機: ${phoneNumbersArray[nowCall]}`);
-              const fetch_makeCall = await makeCall(token, dn, device_id, 'outbound', phone);
-              if (!fetch_makeCall.success) return res.status(fetch_makeCall.error.status).send(fetch_makeCall.error); // 錯誤處理
+              const fetch_makeCall = await makeCall(token, dn, device_id, 'outbound', phoneNumbersArray[nowCall]);
+              if (!fetch_makeCall.success) {
+                console.error('Failed to makeCall');
+                return {
+                  success: false,
+                  message: fetch_makeCall.error.message,
+                  status: fetch_makeCall.error.status,
+                };
+              } // 錯誤處理
               const currentCall = fetch_makeCall.data;
               console.log('撥打電話請求:', currentCall);
             }, callGapTime * 1000); // 轉換為毫秒
@@ -118,7 +132,7 @@ function createWs (token, phones, dn, device_id, caller, client_id) {
       } catch (error) {
         // 如果不是 JSON 格式，直接輸出字串
         clientWsOutboundCampaigm.close();
-        console.log('Received raw message from WebSocket server:', data.toString());
+        console.log('Received raw message from WebSocket server:', error.toString());
       }
     });
 
@@ -126,7 +140,7 @@ function createWs (token, phones, dn, device_id, caller, client_id) {
       // console.log('WebSocket connection closed');
     });
 
-    ws.on('error', function error(err) {
+    ws.on('error', function error() {
       // console.error('WebSocket error:', err.message);
       throw new Error('WebSocket connection error');
     });
@@ -138,7 +152,7 @@ function createWs (token, phones, dn, device_id, caller, client_id) {
 };
 
 // 常規的 outboundCampaigm API
-router.post('/', async function(req, res, next) {
+router.post('/', async function(req, res) {
   const { grant_type, client_id, client_secret, phones } = req.body;
 
   if (!grant_type || !client_id || !client_secret || !phones) {

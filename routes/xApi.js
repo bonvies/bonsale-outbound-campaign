@@ -8,7 +8,7 @@ const {
 
 
 // 3CX Xapi 取得當前活躍呼叫的列表
-router.get('/activeCalls', async function(req, res, next) {
+router.get('/activeCalls', async function(req, res) {
   const {token_3cx} = req.body;
   try {
     const result = await activeCalls(token_3cx);

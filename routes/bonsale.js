@@ -5,8 +5,8 @@ const WebSocket = require('ws');
 require('dotenv').config();
 
 const host = process.env.BONSALE_HOST;
-const xApiKey = X_API_KEY=process.env.BONSALE_X_API_KEY;
-const xApiSecret = X_API_KEY=process.env.BONSALE_X_API_SECRET;
+const xApiKey = process.env.BONSALE_X_API_KEY;
+const xApiSecret = process.env.BONSALE_X_API_SECRET;
 
 const axiosBonsaleInstance = axios.create({
   baseURL: host,
@@ -28,7 +28,7 @@ clientWsWebHook.on('connection', (ws) => {
 });
 
 // 建立一個 /WebHook 端點 來接收 Bonsale 的 WebHook 通知
-router.post('/WebHook', async function(req, res, next) {
+router.post('/WebHook', async function(req, res) {
   try {
     console.log('Received Bonsale WebHook:', req.body);
 
@@ -44,7 +44,7 @@ router.post('/WebHook', async function(req, res, next) {
 });
 
 // 取得 Bonsale 外撥專案
-router.get('/project/auto-dial', async function(req, res, next) {
+router.get('/project/auto-dial', async function(req, res) {
   try {
     const queryString = new URLSearchParams(req.query).toString().replace(/%2B/g, '+'); // 將 %2B 替換為 + 因為 Bonsale 的 sort query API 格式會像這樣 created_at+desc 但 new URLSearchParams 會將 + 編碼成 %2B 導致無法正確查詢
     console.log(req.query)
@@ -58,7 +58,7 @@ router.get('/project/auto-dial', async function(req, res, next) {
 });
 
 // 取得單一 Bonsale 外撥專案
-router.get('/project/:projectId/auto-dial/:callFlowId', async function(req, res, next) {
+router.get('/project/:projectId/auto-dial/:callFlowId', async function(req, res) {
   const { projectId, callFlowId } = req.params;
   console.log('projectId:', projectId);
   console.log('callFlowId:', callFlowId);
@@ -76,7 +76,7 @@ router.get('/project/:projectId/auto-dial/:callFlowId', async function(req, res,
 });
 
 // 取得 Bonsale 專案名單資料
-router.get('/project', async function(req, res, next) {
+router.get('/project', async function(req, res) {
   try {
     const queryString = new URLSearchParams(req.query).toString();
     console.log(queryString)
@@ -90,7 +90,7 @@ router.get('/project', async function(req, res, next) {
 });
 
 // 取得 Bonsale 專案名單總頁數資料
-router.get('/project/count/customer', async function(req, res, next) {
+router.get('/project/count/customer', async function(req, res) {
   try {
     const queryString = new URLSearchParams(req.query).toString();
     console.log(`${host}/project/count/customer?${queryString}`)
@@ -104,7 +104,7 @@ router.get('/project/count/customer', async function(req, res, next) {
 });
 
 // 編輯 Bonsale 專案資料
-router.put('/project/3cx/:projectId', async function(req, res, next) {
+router.put('/project/3cx/:projectId', async function(req, res) {
   const { projectId } = req.params; // 從路徑參數中取得 projectId
   const { isEnable } = req.body; 
 
@@ -124,7 +124,7 @@ router.put('/project/3cx/:projectId', async function(req, res, next) {
 });
 
 // 取得 outbound 外撥的人員資料
-router.get('/outbound', async function(req, res, next) {
+router.get('/outbound', async function(req, res) {
   try {
     const queryString = new URLSearchParams(req.query).toString();
     console.log(queryString)
@@ -138,7 +138,7 @@ router.get('/outbound', async function(req, res, next) {
 });
 
 // Bonsale 回寫 callStatus
-router.put('/project/:projectId/customer/:customerId/callStatus', async function(req, res, next) {
+router.put('/project/:projectId/customer/:customerId/callStatus', async function(req, res) {
   const { projectId, customerId } = req.params; // 從路徑參數中取得 projectId 和 customerId
   const { callStatus } = req.body; // 從請求主體中取得 callStatus
   console.log('callStatus:', callStatus);
@@ -161,7 +161,7 @@ router.put('/project/:projectId/customer/:customerId/callStatus', async function
 });
 
 // Bonsale 回寫 dialUpdate
-router.put('/project/:projectId/customer/:customerId/dialUpdate', async function(req, res, next) {
+router.put('/project/:projectId/customer/:customerId/dialUpdate', async function(req, res) {
   const { projectId, customerId } = req.params; // 從路徑參數中取得 projectId 和 customerId
   console.log('projectId:', projectId);
   console.log('customerId:', customerId);
@@ -181,7 +181,7 @@ router.put('/project/:projectId/customer/:customerId/dialUpdate', async function
 });
 
 // Bonsale 取得 訪談紀錄 /project/customer/visit
-router.get('/project/customer/visit', async function(req, res, next) {
+router.get('/project/customer/visit', async function(req, res) {
   try {
     const queryString = new URLSearchParams(req.query).toString();
     console.log(queryString)
@@ -198,7 +198,7 @@ router.get('/project/customer/visit', async function(req, res, next) {
 });
 
 // Bonsale 回寫 訪談紀錄 /project/customer/visit
-router.post('/project/customer/visit', async function(req, res, next) {
+router.post('/project/customer/visit', async function(req, res) {
   const {projectId, customerId, visitType, visitedUsername, visitedAt, description, visitedResult, task } = req.body;
 
   if (!projectId || !customerId || !visitType || !visitedUsername || !visitedAt || !description || !visitedResult) {
@@ -221,7 +221,7 @@ router.post('/project/customer/visit', async function(req, res, next) {
 });
 
 // Bonsale 更新 最新執行時間 /project/:id/auto-dial/:callFlowId/execute
-router.put('/project/:projectId/auto-dial/:callFlowId/execute', async function(req, res, next) {
+router.put('/project/:projectId/auto-dial/:callFlowId/execute', async function(req, res) {
   const { projectId, callFlowId } = req.params;
 
   if (!projectId || !callFlowId ) {
