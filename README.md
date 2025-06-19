@@ -1,6 +1,6 @@
 # bonsale-outbound-campaign
 
-**Version: v0.1.1**
+**Version: v0.1.2**
 
 ## Environment Variables
 
