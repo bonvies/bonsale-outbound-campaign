@@ -84,7 +84,7 @@ async function updateVisitRecord (
     if (task !== undefined) {
       payload.task = task;
     }
-    const response = await axios.put(`${host}/project/customer/visit`, payload);
+    const response = await axios.post(`${host}/project/customer/visit`, payload);
     return { success: true, data: response.data }; // 返回成功
   } catch (error) {
     console.error('Error updateVisitRecord request:', error.message);
