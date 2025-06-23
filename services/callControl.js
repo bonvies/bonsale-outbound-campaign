@@ -63,16 +63,16 @@ async function hangupCall (token, dn, id) {
   }
 };
 
-async function getCaller (token) {
+async function getCaller (token, type = 'Wqueue') {
   try {
     const response = await axios.get(`${host}/callcontrol`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
-    const caller = response.data.find(item => item.type === 'Wqueue');
+    const caller = response.data.find(item => item.type === type);
     if (!caller) {
-      return { success: false, error: { status: 404, message: 'Caller type Wqueue not found' } }; // 返回错误
+      return { success: false, error: { status: 404, message: `Caller type ${type} not found` } }; // 返回错误
     }
     return { success: true, data: caller }; // 返回成功的撥打者資訊
   } catch (error) {

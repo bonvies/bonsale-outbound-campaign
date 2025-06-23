@@ -15,7 +15,8 @@ async function bonsaleMemberMackCall(
   grant_type,
   client_id,
   client_secret,
-  phone
+  phone,
+  deviceId = null, // 預設為 null，如果有提供則使用
 ) {
   if (!grant_type || !client_id || !client_secret || !phone) {
     errorWithTimestamp('Missing required fields');
@@ -53,8 +54,8 @@ async function bonsaleMemberMackCall(
 
     // 到這邊準備工作完成 可以開始撥打電話了
     // logWithTimestamp(`撥打者 ${client_id} / 準備撥給 ${phone} 手機`);
-    const fetch_makeCall = await makeCall(token, queueDn, device_id, 'outbound', phone);
-   if (!fetch_makeCall.success) {
+    const fetch_makeCall = await makeCall(token, queueDn, deviceId || device_id, 'outbound', phone);
+    if (!fetch_makeCall.success) {
       errorWithTimestamp('Failed to makeCall');
       return {
         success: false,
@@ -87,6 +88,76 @@ async function bonsaleMemberMackCall(
   }
 }
 
+async function bonsaleMemberMackCallGetCaller(grant_type, client_id, client_secret) {
+  if (!grant_type || !client_id || !client_secret ) {
+    errorWithTimestamp('Missing required fields');
+    return {
+      success: false,
+      message: 'Missing required fields',
+    };
+  }
+  // 先取得 3CX token 
+  const fetch_get3cxToken = await get3cxToken(grant_type, client_id, client_secret);
+  if (!fetch_get3cxToken.success) {
+    errorWithTimestamp('Failed to fetch_get3cxToken');
+    return {
+      success: false,
+      message: fetch_get3cxToken.error.message,
+      status: fetch_get3cxToken.error.status,
+    };
+  }
+  const token = fetch_get3cxToken.data?.access_token; // 取得 access_token
+
+  if (!token) {
+    return {
+      success: false,
+      message: fetch_get3cxToken.error.message,
+    };
+  }
+
+  try {
+    // 取得撥號者資料
+    const caller = await getCaller(token, "Wextension");
+    if (!caller.success) {
+      errorWithTimestamp('Failed to fetch_getCaller');
+      return {
+        success: false,
+        message: caller.error.message,
+      };
+    };
+    return {
+      success: true,
+      data: caller.data,
+    };
+  } catch (error) {
+    errorWithTimestamp('Error in bonsaleMemberMackCallGetCaller:', error.message);
+    return {
+      success: false,
+      message: `Error in bonsaleMemberMackCallGetCaller: ${error.message}`,
+    };
+  }
+}
+
+// 3CX 取得撥號者資料
+router.post('/getCaller', async function(req, res) {
+  const { grant_type, client_id, client_secret } = req.body;
+  if (!grant_type || !client_id || !client_secret) {
+    return res.status(400).send('Missing required fields');
+  }
+
+  const result = await bonsaleMemberMackCallGetCaller(
+    grant_type,
+    client_id,
+    client_secret
+  );
+
+  if (result.success) {
+    return res.status(200).send(result);
+  } else {
+    return res.status(400).send(result);
+  }
+});
+
 router.post('/', async function(req, res) {
   const { grant_type, client_id, client_secret, phone } = req.body;
 
@@ -98,9 +169,9 @@ router.post('/', async function(req, res) {
   );
 
   if (result.success) {
-    return res.status(200).send(result);
+    return res.status(result.status).send(result);
   } else {
-    return res.status(400).send(result);
+    return res.status(result.status).send(result);
   }
 });
 
