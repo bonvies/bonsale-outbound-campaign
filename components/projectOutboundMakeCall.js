@@ -91,13 +91,13 @@ async function projectOutboundMakeCall(
         status: fetch_getUsers.error.status,
       };
     }
-    const { CurrentProfileName, ForwardingProfiles } = fetch_getUsers.data.value[0]; // 這邊我只取第一個代理人詳細資訊
+    const { CurrentProfileName } = fetch_getUsers.data.value[0]; // 這邊我只取第一個代理人詳細資訊
 
     // 我們用還需要知道 CurrentProfileName 的值 有沒有被 Log out from queues 這才是我們要的狀態
     // logWithTimestamp('撥打者分配的代理人詳細狀態:', CurrentProfileName, ForwardingProfiles);
 
-    const findForwardingProfiles = ForwardingProfiles.find(profile => profile.Name === CurrentProfileName);
-    const isLogOutFromQueues = findForwardingProfiles?.OfficeHoursAutoQueueLogOut;
+    // const findForwardingProfiles = ForwardingProfiles.find(profile => profile.Name === CurrentProfileName);
+    // const isLogOutFromQueues = findForwardingProfiles?.OfficeHoursAutoQueueLogOut;
 
     // logWithTimestamp('撥打者分配的代理人詳細狀態:', CurrentProfileName);
 
@@ -121,9 +121,10 @@ async function projectOutboundMakeCall(
       // warnWithTimestamp('撥打者分配的代理人狀態不是空閒的', CurrentProfileName);
       warnWithTimestamp(`撥打者分配的代理人狀態是 ${CurrentProfileName} 此狀態限制不能撥打電話`);
       return {
+        success: false,
         message: `撥打者分配的代理人狀態是 ${CurrentProfileName} 此狀態限制不能撥打電話`,
         status: CurrentProfileName,
-        isLogOutFromQueues
+        tag: 'notAvailable',
       };
     }
     // 如果是空閒的話 就可以準備撥打電話

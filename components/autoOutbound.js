@@ -127,12 +127,19 @@ async function autoOutbound(project, projectIndex, projectArray) {
         // 如果撥打失敗，將專案狀態設為 error
         if (!firstOutbounCall.success) {
           errorWithTimestamp(`專案 ${projectId} 撥打電話失敗: ${firstOutbounCall.message}`);
+          if (firstOutbounCall.tag === 'notAvailable') {
+            projectArray[projectIndex] = {
+              ...project,
+              action: 'error - notAvailable', // 將專案狀態設為 warning
+            };
+            return; // 中斷撥打
+          }
           projectArray[projectIndex] = {
             ...project,
             action: 'error', // 將專案狀態設為 error
             error: firstOutbounCall.message, // 儲存錯誤訊息
           };
-          return;
+          return; // 中斷撥打
         }
 
         projectArray[projectIndex] = {
