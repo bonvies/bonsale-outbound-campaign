@@ -39,7 +39,7 @@ async function bonsaleMemberMackCall(
     const token = fetch_get3cxToken.data?.access_token; // 取得 access_token
 
     // 取得 撥號分機資訊 (需要設定 queue)
-    const fetch_getCaller = await getCaller(token); // 取得撥號者
+    const fetch_getCaller = await getCaller(token, 'Wextension'); // 取得撥號者
     if (!fetch_getCaller.success) {
       errorWithTimestamp('Failed to fetch_getCaller');
       return {
@@ -49,12 +49,13 @@ async function bonsaleMemberMackCall(
       };
     }
     const caller = fetch_getCaller.data
-    const { dn: queueDn, device_id } = caller.devices[0]; // 這邊我只有取第一台設備資訊
+    const { dn, device_id } = caller.devices[0]; // 這邊我只有取第一台設備資訊
     // logWithTimestamp('撥打者資訊 : ', caller);
 
     // 到這邊準備工作完成 可以開始撥打電話了
     // logWithTimestamp(`撥打者 ${client_id} / 準備撥給 ${phone} 手機`);
-    const fetch_makeCall = await makeCall(token, queueDn, deviceId || device_id, 'outbound', phone);
+    console.log(`撥打者分機 ${dn} / 準備撥給話機位置 ${deviceId}`);
+    const fetch_makeCall = await makeCall(token, dn, deviceId || device_id, 'outbound', phone);
     if (!fetch_makeCall.success) {
       errorWithTimestamp('Failed to makeCall');
       return {
@@ -152,30 +153,32 @@ router.post('/getCaller', async function(req, res) {
   );
 
   if (result.success) {
+    return res.status(200).send(JSON.stringify(result));
+  } else {
+    return res.status(400).send(JSON.stringify(result));
+  }
+});
+
+router.post('/', async function(req, res) {
+  const { grant_type, client_id, client_secret, phone, deviceId } = req.body;
+
+  const result = await bonsaleMemberMackCall(
+    grant_type,
+    client_id,
+    client_secret,
+    phone,
+    deviceId // 傳入設備 ID，如果沒有提供則使用 null
+  );
+
+  if (result.success) {
     return res.status(200).send(result);
   } else {
     return res.status(400).send(result);
   }
 });
 
-router.post('/', async function(req, res) {
-  const { grant_type, client_id, client_secret, phone } = req.body;
-
-  const result = await bonsaleMemberMackCall(
-    grant_type,
-    client_id,
-    client_secret,
-    phone
-  );
-
-  if (result.success) {
-    return res.status(result.status).send(result);
-  } else {
-    return res.status(result.status).send(result);
-  }
-});
-
 module.exports = {
   router,
   bonsaleMemberMackCall,
+  bonsaleMemberMackCallGetCaller
 };
