@@ -63,7 +63,7 @@ router.get('/project/:projectId/auto-dial/:callFlowId', async function(req, res)
   console.log('projectId:', projectId);
   console.log('callFlowId:', callFlowId);
   if (!projectId || !callFlowId) {
-    return res.status(400).send('Missing required fields');
+    return res.status(400).send('Error in GET /auto-dial: Missing required fields');
   };
   try {
     const autoDialData = await axiosBonsaleInstance.get(`${host}/project/${projectId}/auto-dial/${callFlowId}`);
@@ -202,7 +202,7 @@ router.post('/project/customer/visit', async function(req, res) {
   const {projectId, customerId, visitType, visitedUsername, visitedAt, description, visitedResult, task } = req.body;
 
   if (!projectId || !customerId || !visitType || !visitedUsername || !visitedAt || !description || !visitedResult) {
-    return res.status(400).send('Missing required fields');
+    return res.status(400).send('Error in POST /project/customer/visit: Missing required fields');
   };
 
   try {
@@ -225,7 +225,7 @@ router.put('/project/:projectId/auto-dial/:callFlowId/execute', async function(r
   const { projectId, callFlowId } = req.params;
 
   if (!projectId || !callFlowId ) {
-    return res.status(400).send('Missing required fields');
+    return res.status(400).send('Error in POST /project/customer/visit: Missing required fields');
   };
 
   try {
