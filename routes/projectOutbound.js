@@ -223,13 +223,12 @@ router.post('/', async function(req, res) {
     // 新增專案到佇列
     projects.push({ grant_type, client_id, client_secret, callFlowId, projectId, action, projectCallData: null, });
 
-    // project 同時備份至 bonsale config 紀錄
-    backupProjectsToBonsaleConfig(projects)
-
     res.status(200).send({
       message: 'Request projectOutbound successfully'
     });
   } finally {
+    // project 同時備份至 bonsale config 紀錄
+    backupProjectsToBonsaleConfig(projects)
     isApiRunning = false; // API 結束，設為 false
   }
   
@@ -268,14 +267,13 @@ router.put('/:projectId', async function(req, res) {
       projects[index] = updatedProject;
     }
 
-    // project 同時備份至 bonsale config 紀錄
-    backupProjectsToBonsaleConfig(projects)
-
     res.status(200).send({
       message: `Project ${projectId} updated successfully`,
       project: updatedProject
     });
   } finally {
+    // project 同時備份至 bonsale config 紀錄
+    backupProjectsToBonsaleConfig(projects)
     isApiRunning = false; // API 結束，設為 false
   }
   
@@ -343,6 +341,8 @@ router.patch('/:projectId', async function(req, res) {
       project: projects[projectIndex]
     });
   } finally {
+    // project 同時備份至 bonsale config 紀錄
+    backupProjectsToBonsaleConfig(projects)
     isApiRunning = false; // API 結束，設為 false
   }
 });
@@ -386,13 +386,12 @@ router.delete('/:projectId', async function(req, res) {
     }
     projects.splice(projectIndex, 1);
 
-    // project 同時備份至 bonsale config 紀錄
-    backupProjectsToBonsaleConfig(projects)
-
     res.status(200).send({
       message: `Project ${projectId} delete successfully`,
     });
   } finally {
+    // project 同時備份至 bonsale config 紀錄
+    backupProjectsToBonsaleConfig(projects)
     isApiRunning = false; // API 結束，設為 false
   }
 });

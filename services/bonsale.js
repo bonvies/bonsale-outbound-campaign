@@ -104,7 +104,11 @@ async function getBonsaleConfig (configName) {
 
 async function updateBonsaleConfig (configName, configData) {
   try {
-    const response = await axiosBonsaleInstance.put(`${host}/config/${configName}`, configData);
+    const response = await axiosBonsaleInstance.put(`${host}/config/${configName}`, {
+      configName: configName,
+      configValue: configData,
+      description: '專案自動外播-執行專案暫存',
+    });
     return { success: true, data: response.data }; // 返回成功
   } catch (error) {
     console.error('Error updateBonsaleConfig request:', error.message);
