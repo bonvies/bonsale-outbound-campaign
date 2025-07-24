@@ -14,7 +14,7 @@ const { mainActionType } = require('../util/mainActionType.js');
 const { hangupCall } = require('../services/callControl.js');
 
 const { get3cxToken } = require('../services/callControl.js');
-
+const { getBonsaleConfig, updateBonsaleConfig } = require('../services/bonsale.js');
 
 require('dotenv').config();
 
@@ -34,6 +34,13 @@ clientWsProjectOutbound.on('connection', (ws) => {
 let isApiRunning = false; // 用來判斷 API 是否正在運行
 
 let globalToken = null;
+
+let bonsaleConfig = null;
+(async () => {
+  bonsaleConfig = await getBonsaleConfig(process.env.BONSALE_CONFIG_NAME);
+  console.log('bonsaleConfig:', bonsaleConfig);
+})();
+console.log('bonsaleConfig:', bonsaleConfig);
 const projects = []; // 儲存專案資訊
 const activeCallQueue = []; // 儲存活躍撥號的佇列
 
@@ -175,6 +182,23 @@ setInterval(async () => {
   }
 }, CALL_GAP_TIME * 1000); // 每 CALL_GAP_TIME 秒檢查一次撥號狀態
 
+
+// project 同時備份至 bonsale config 紀錄
+async function backupProjectsToBonsaleConfig(projects) {
+  const backupProject = projects.map(project => ({
+    grant_type: project.grant_type,
+    client_id: project.client_id,
+    client_secret: project.client_secret,
+    callFlowId: project.callFlowId,
+    projectId: project.projectId,
+    action: 'start', // 將 action 狀態設為 start
+    projectCallData: null, // 不需要備份 projectCallData
+  }));
+
+  const configName = process.env.BONSALE_CONFIG_NAME;
+  updateBonsaleConfig(configName, backupProject);
+}
+
 // projectOutbound API - 將專案加入自動撥號佇列
 router.post('/', async function(req, res) {
   isApiRunning = true; // API 開始，設為 true
@@ -198,6 +222,9 @@ router.post('/', async function(req, res) {
     }
     // 新增專案到佇列
     projects.push({ grant_type, client_id, client_secret, callFlowId, projectId, action, projectCallData: null, });
+
+    // project 同時備份至 bonsale config 紀錄
+    backupProjectsToBonsaleConfig(projects)
 
     res.status(200).send({
       message: 'Request projectOutbound successfully'
@@ -240,6 +267,10 @@ router.put('/:projectId', async function(req, res) {
     if (index !== -1) {
       projects[index] = updatedProject;
     }
+
+    // project 同時備份至 bonsale config 紀錄
+    backupProjectsToBonsaleConfig(projects)
+
     res.status(200).send({
       message: `Project ${projectId} updated successfully`,
       project: updatedProject
@@ -354,6 +385,9 @@ router.delete('/:projectId', async function(req, res) {
       return res.status(404).send(`Project with ID ${projectId} not found`);
     }
     projects.splice(projectIndex, 1);
+
+    // project 同時備份至 bonsale config 紀錄
+    backupProjectsToBonsaleConfig(projects)
 
     res.status(200).send({
       message: `Project ${projectId} delete successfully`,

@@ -243,4 +243,50 @@ router.put('/project/:projectId/auto-dial/:callFlowId/execute', async function(r
   }
 });
 
+// Bonsale config 取得備份 project 暫存
+router.get('/config/:configName', async function(req, res) {
+  const { configName } = req.params;
+
+  if (!configName) {
+    return res.status(400).send('Error in GET /config/:configName: Missing required fields');
+  };
+
+  try {
+    // 發送 GET 請求到 Bonsale API
+    const response = await axiosBonsaleInstance.get(
+      `${host}/config/${configName}`
+    );
+
+    // 回傳 Bonsale API 的回應
+    return res.status(200).send(response.data);
+  } catch (error) {
+    console.error('Error in GET /config/:configName:', error.message);
+    return res.status(error.status).send(`Error in GET /config/:configName: ${error.message}`);
+  }
+});
+
+// Bonsale config 更新備份 project 暫存
+router.put('/config/:configName', async function(req, res) {
+  const { configName } = req.params;
+  const { data } = req.body;
+
+  if (!configName || !data) {
+    return res.status(400).send('Error in PUT /config/:configName: Missing required fields');
+  };
+
+  try {
+    // 發送 PUT 請求到 Bonsale API
+    const response = await axiosBonsaleInstance.put(
+      `${host}/config/${configName}`,
+      { data }
+    );
+
+    // 回傳 Bonsale API 的回應
+    return res.status(200).send(response.data);
+  } catch (error) {
+    console.error('Error in PUT /config/:configName:', error.message);
+    return res.status(error.status).send(`Error in PUT /config/:configName: ${error.message}`);
+  }
+});
+
 module.exports = { router, clientWsWebHook };

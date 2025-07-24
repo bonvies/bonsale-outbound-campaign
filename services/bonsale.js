@@ -92,8 +92,30 @@ async function updateVisitRecord (
   }
 }
 
+async function getBonsaleConfig (configName) {
+  try {
+    const response = await axiosBonsaleInstance.get(`${host}/config/${configName}`);
+    return { success: true, data: response.data }; // 返回成功
+  } catch (error) {
+    console.error('Error getBonsaleConfig request:', error.message);
+    return { success: false, error: { status: error.status, message: `Error getBonsaleConfig request: ${error.message}` } }; // 返回錯誤
+  }
+}
+
+async function updateBonsaleConfig (configName, configData) {
+  try {
+    const response = await axiosBonsaleInstance.put(`${host}/config/${configName}`, configData);
+    return { success: true, data: response.data }; // 返回成功
+  } catch (error) {
+    console.error('Error updateBonsaleConfig request:', error.message);
+    return { success: false, error: { status: error.status, message: `Error updateBonsaleConfig request: ${error.message}` } }; // 返回錯誤
+  }
+}
+
 module.exports = {
   getOutbound,
+  getBonsaleConfig,
+  updateBonsaleConfig,
   updateCallStatus,
   updateBonsaleProjectAutoDialExecute,
   updateDialUpdate,
