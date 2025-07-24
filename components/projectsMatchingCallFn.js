@@ -104,6 +104,10 @@ async function projectsMatchingCallFn(projects, matchingCallResults) {
           }
         } catch (err) {
           errorWithTimestamp(`強制更新狀態時發生錯誤: ${err.message}`);
+          projects[projectIndex] = {
+            ...project,
+            error: err.message,
+          };
         }
 
         projects[projectIndex] = {
