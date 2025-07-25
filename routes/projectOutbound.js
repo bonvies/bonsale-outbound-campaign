@@ -15,6 +15,8 @@ const { hangupCall } = require('../services/callControl.js');
 
 const { get3cxToken } = require('../services/callControl.js');
 const { sendDiscordMessage } = require('../util/discordNotify.js');
+const { getBonsaleConfig, updateBonsaleConfig } = require('../services/bonsale.js');
+
 require('dotenv').config();
 
 
@@ -36,7 +38,12 @@ clientWsProjectOutbound.on('connection', (ws) => {
 let isApiRunning = false; // 用來判斷 API 是否正在運行
 
 let globalToken = null;
-const projects = []; // 儲存專案資訊
+
+const activeCallQueue = []; // 儲存活躍撥號的佇列
+
+let bonsaleConfig = null;
+
+let projects = []; // 一開始設為空陣列
 /* 
   projects 的資料結構
   {
@@ -55,8 +62,22 @@ const projects = []; // 儲存專案資訊
     _makeCallTimes: 1753264804907
   }
  */
-const activeCallQueue = []; // 儲存活躍撥號的佇列
 
+// 初始化專案資料 如果有快取之前的專案就引用
+(async () => {
+  try {
+    bonsaleConfig = await getBonsaleConfig(process.env.BONSALE_CONFIG_NAME);
+
+    if (bonsaleConfig && bonsaleConfig.data && bonsaleConfig.data.confValue) {
+      projects = JSON.parse(bonsaleConfig.data.confValue) || [];
+    } else {
+      projects = [];
+    }
+  } catch (err) {
+    projects = [];
+    errorWithTimestamp('初始化專案資料失敗:', err);
+  }
+})();
 
 // 記錄每個 projectId 上次通知的錯誤內容
 const lastErrorMap = new Map();
@@ -81,7 +102,6 @@ setInterval(() => {
     }
   });
 }, 3000);
-
 
 async function getGlobalToken() {
   const grant_type = process.env.ADMIN_3CX_GRANT_TYPE;
@@ -222,6 +242,29 @@ setInterval(async () => {
   }
 }, CALL_GAP_TIME * 1000); // 每 CALL_GAP_TIME 秒檢查一次撥號狀態
 
+
+// project 同時備份至 bonsale config 紀錄
+async function backupProjectsToBonsaleConfig(projects) {
+  try {
+    const backupProject = projects.map(project => ({
+      grant_type: project.grant_type,
+      client_id: project.client_id,
+      client_secret: project.client_secret,
+      callFlowId: project.callFlowId,
+      projectId: project.projectId,
+      action: project.action,
+      projectCallData: null, // 不需要備份 projectCallData
+    }));
+
+    const configName = process.env.BONSALE_CONFIG_NAME;
+    const bonsaleConfig = await updateBonsaleConfig(configName, JSON.stringify(backupProject));
+    console.log('備份專案至 Bonsale config 成功:', bonsaleConfig);
+  } catch (error) {
+    errorWithTimestamp('Error while backing up projects to Bonsale config:', error.message);
+  }
+
+}
+
 // projectOutbound API - 將專案加入自動撥號佇列
 router.post('/', async function(req, res) {
   isApiRunning = true; // API 開始，設為 true
@@ -250,6 +293,8 @@ router.post('/', async function(req, res) {
       message: 'Request projectOutbound successfully'
     });
   } finally {
+    // project 同時備份至 bonsale config 紀錄
+    backupProjectsToBonsaleConfig(projects)
     isApiRunning = false; // API 結束，設為 false
   }
   
@@ -287,11 +332,14 @@ router.put('/:projectId', async function(req, res) {
     if (index !== -1) {
       projects[index] = updatedProject;
     }
+
     res.status(200).send({
       message: `Project ${projectId} updated successfully`,
       project: updatedProject
     });
   } finally {
+    // project 同時備份至 bonsale config 紀錄
+    backupProjectsToBonsaleConfig(projects)
     isApiRunning = false; // API 結束，設為 false
   }
   
@@ -359,6 +407,8 @@ router.patch('/:projectId', async function(req, res) {
       project: projects[projectIndex]
     });
   } finally {
+    // project 同時備份至 bonsale config 紀錄
+    backupProjectsToBonsaleConfig(projects)
     isApiRunning = false; // API 結束，設為 false
   }
 });
@@ -406,6 +456,8 @@ router.delete('/:projectId', async function(req, res) {
       message: `Project ${projectId} delete successfully`,
     });
   } finally {
+    // project 同時備份至 bonsale config 紀錄
+    backupProjectsToBonsaleConfig(projects)
     isApiRunning = false; // API 結束，設為 false
   }
 });
