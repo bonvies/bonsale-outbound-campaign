@@ -12,8 +12,6 @@ const {
 
 const { warnWithTimestamp, errorWithTimestamp } = require('../util/timestamp.js');
 
-let testCounter = 0; // 用來測試的計數器
-
 // 專案撥打電話的邏輯
 // 這個函式會先取得 3CX 的 token，然後取得撥號者的分機資訊，接著檢查撥打者分配的代理人狀態
 // 如果代理人狀態是空閒的，就可以撥打電話，否則就不撥打並回傳相應的訊息
@@ -80,20 +78,17 @@ async function projectOutboundMakeCall(
       };
     }
     // logWithTimestamp('撥打者分配的代理人狀態:', reportAgentsInQueueStatistics.data);
-    console.log('撥打者分配的代理人狀態:', reportAgentsInQueueStatistics.data.value);
     const { Dn: agentDn } = reportAgentsInQueueStatistics.data.value[0]; // 這邊我只取第一個代理人資訊
     // logWithTimestamp('撥打者分配的代理人狀態:', agentDn , queueDn);
 
     // 有了 agentDn 我可以查看這個代理人的詳細狀態 包含是否為空閒狀態 ( CurrentProfileName 的值 )
     const fetch_getUsers = await getUsers(token, agentDn);
-    if (fetch_getUsers.success) {
+    if (!fetch_getUsers.success) {
       errorWithTimestamp('Failed to getUsers');
-      console.log('testCounter',testCounter)
-      testCounter ++
       return {
         success: false,
-        message: testCounter>=10 ? 'testCounter 到 10' :'只是測試錯誤而已',
-        status: '只是測試錯誤而已',
+        message: fetch_getUsers.error.message,
+        status: fetch_getUsers.error.status,
       };
     }
     const { CurrentProfileName } = fetch_getUsers.data.value[0]; // 這邊我只取第一個代理人詳細資訊
