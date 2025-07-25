@@ -17,6 +17,7 @@ function errorWithTimestamp(...args) {
 }
 
 module.exports = {
+  getTaiwanTimestamp,
   logWithTimestamp,
   warnWithTimestamp,
   errorWithTimestamp

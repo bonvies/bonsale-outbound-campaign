@@ -8,15 +8,17 @@ const lodash = require('lodash');
 const { autoOutbound } = require('../components/autoOutbound.js');
 const throttledAutoOutbound = lodash.throttle(autoOutbound, 30, { trailing: false });
 
-const { logWithTimestamp, warnWithTimestamp, errorWithTimestamp } = require('../util/timestamp.js');
+const { getTaiwanTimestamp, logWithTimestamp, warnWithTimestamp, errorWithTimestamp } = require('../util/timestamp.js');
 const { projectsMatchingCallFn } = require('../components/projectsMatchingCallFn.js');
 const { mainActionType } = require('../util/mainActionType.js');
 const { hangupCall } = require('../services/callControl.js');
 
 const { get3cxToken } = require('../services/callControl.js');
-
-
+const { sendDiscordMessage } = require('../util/discordNotify.js');
 require('dotenv').config();
+
+
+
 
 const CALL_GAP_TIME = Number(process.env.CALL_GAP_TIME) || 1; // 預設 1 秒
 
@@ -35,7 +37,51 @@ let isApiRunning = false; // 用來判斷 API 是否正在運行
 
 let globalToken = null;
 const projects = []; // 儲存專案資訊
+/* 
+  projects 的資料結構
+  {
+    grant_type: 'client_credentials’,
+    client_secret: '3CX API Key',
+    callFlowId: 'callFlow 的 ID',
+    projectId: '專案的 ID',
+    action: '專案的狀態',
+    projectCallData: null,
+    currentMakeCall: null,
+    error: null,
+    _toCall: {
+      phone: '',
+      customerId: ''
+    },
+    _makeCallTimes: 1753264804907
+  }
+ */
 const activeCallQueue = []; // 儲存活躍撥號的佇列
+
+
+// 記錄每個 projectId 上次通知的錯誤內容
+const lastErrorMap = new Map();
+
+// 週期性偵測 projects 錯誤 並發送 Discord 通知
+setInterval(() => {
+  projects.forEach(project => {
+    if (project.error) {
+      // 取得上次通知的錯誤內容
+      const lastError = lastErrorMap.get(project.projectId);
+      // 如果錯誤內容不同，才發送通知
+      if (lastError !== project.error) {
+        const now = getTaiwanTimestamp();
+        sendDiscordMessage(`[${now}] 偵測到專案 ${project.projectId} 發生錯誤: ${project.error}`);
+        lastErrorMap.set(project.projectId, project.error);
+      }
+    } else {
+      // 沒有錯誤就移除記錄
+      if (lastErrorMap.has(project.projectId)) {
+        lastErrorMap.delete(project.projectId);
+      }
+    }
+  });
+}, 3000);
+
 
 async function getGlobalToken() {
   const grant_type = process.env.ADMIN_3CX_GRANT_TYPE;
@@ -83,6 +129,7 @@ function projectsIntervalAutoOutbound() {
     }
   })();
 }
+
 
 // 每 CALL_GAP_TIME 秒 進行自動撥號 並 檢查撥號狀態
 setInterval(async () => {
