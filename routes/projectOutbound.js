@@ -19,9 +19,6 @@ const { getBonsaleConfig, updateBonsaleConfig } = require('../services/bonsale.j
 
 require('dotenv').config();
 
-
-
-
 const CALL_GAP_TIME = Number(process.env.CALL_GAP_TIME) || 1; // 預設 1 秒
 
 // 創建 WebSocket Server
@@ -79,29 +76,35 @@ let projects = []; // 一開始設為空陣列
   }
 })();
 
-// 記錄每個 projectId 上次通知的錯誤內容
-const lastErrorMap = new Map();
+const discordBotToken = process.env.DISCORD_BOT_TOKEN;
 
-// 週期性偵測 projects 錯誤 並發送 Discord 通知
-setInterval(() => {
-  projects.forEach(project => {
-    if (project.error) {
-      // 取得上次通知的錯誤內容
-      const lastError = lastErrorMap.get(project.projectId);
-      // 如果錯誤內容不同，才發送通知
-      if (lastError !== project.error) {
-        const now = getTaiwanTimestamp();
-        sendDiscordMessage(`[${now}] 偵測到專案 ${project.projectId} 發生錯誤: ${project.error}`);
-        lastErrorMap.set(project.projectId, project.error);
+if (discordBotToken) {
+  // 預設每 5 分鐘檢查一次
+  const discordErrorAlertGapTime = process.env.DISCORD_ERROR_ALERT_GAP_TIME || 300; 
+  // 記錄每個 projectId 上次通知的錯誤內容
+  const lastErrorMap = new Map();
+
+  // 週期性偵測 projects 錯誤 並發送 Discord 通知
+  setInterval(() => {
+    projects.forEach(project => {
+      if (project.error) {
+        // 取得上次通知的錯誤內容
+        const lastError = lastErrorMap.get(project.projectId);
+        // 如果錯誤內容不同，才發送通知
+        if (lastError !== project.error) {
+          const now = getTaiwanTimestamp();
+          sendDiscordMessage(`[${now}] 偵測到專案 ${project.projectId} 發生錯誤: ${project.error}`);
+          lastErrorMap.set(project.projectId, project.error);
+        }
+      } else {
+        // 沒有錯誤就移除記錄
+        if (lastErrorMap.has(project.projectId)) {
+          lastErrorMap.delete(project.projectId);
+        }
       }
-    } else {
-      // 沒有錯誤就移除記錄
-      if (lastErrorMap.has(project.projectId)) {
-        lastErrorMap.delete(project.projectId);
-      }
-    }
-  });
-}, 3000);
+    });
+  }, discordErrorAlertGapTime * 1000);
+}
 
 async function getGlobalToken() {
   const grant_type = process.env.ADMIN_3CX_GRANT_TYPE;
@@ -149,7 +152,6 @@ function projectsIntervalAutoOutbound() {
     }
   })();
 }
-
 
 // 每 CALL_GAP_TIME 秒 進行自動撥號 並 檢查撥號狀態
 setInterval(async () => {
@@ -262,7 +264,6 @@ async function backupProjectsToBonsaleConfig(projects) {
   } catch (error) {
     errorWithTimestamp('Error while backing up projects to Bonsale config:', error.message);
   }
-
 }
 
 // projectOutbound API - 將專案加入自動撥號佇列

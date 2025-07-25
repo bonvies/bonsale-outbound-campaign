@@ -15,8 +15,11 @@ client.once('ready', () => {
   // 測試訊息可移除
   // sendDiscordMessage('這是一條來自 Discord API 的測試訊息！');
 });
+const discordBotToken = process.env.DISCORD_BOT_TOKEN;
 
-client.login(process.env.DISCORD_BOT_TOKEN); // 請將 token 放到 .env
+if (discordBotToken) {
+  client.login(discordBotToken); // 請將 token 放到 .env
+}
 
 async function sendDiscordMessage(message) {
   try {
