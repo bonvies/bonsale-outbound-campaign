@@ -36,13 +36,25 @@ let isApiRunning = false; // 用來判斷 API 是否正在運行
 let globalToken = null;
 
 let bonsaleConfig = null;
-(async () => {
-  bonsaleConfig = await getBonsaleConfig(process.env.BONSALE_CONFIG_NAME);
-  console.log('bonsaleConfig:', bonsaleConfig);
-})();
-console.log('bonsaleConfig:', bonsaleConfig);
-const projects = []; // 儲存專案資訊
+
+let projects = []; // 一開始設為空陣列
 const activeCallQueue = []; // 儲存活躍撥號的佇列
+
+// 初始化專案資料 如果有快取之前的專案就引用
+(async () => {
+  try {
+    bonsaleConfig = await getBonsaleConfig(process.env.BONSALE_CONFIG_NAME);
+
+    if (bonsaleConfig && bonsaleConfig.data && bonsaleConfig.data.confValue) {
+      projects = JSON.parse(bonsaleConfig.data.confValue) || [];
+    } else {
+      projects = [];
+    }
+  } catch (err) {
+    projects = [];
+    errorWithTimestamp('初始化專案資料失敗:', err);
+  }
+})();
 
 async function getGlobalToken() {
   const grant_type = process.env.ADMIN_3CX_GRANT_TYPE;
@@ -185,18 +197,24 @@ setInterval(async () => {
 
 // project 同時備份至 bonsale config 紀錄
 async function backupProjectsToBonsaleConfig(projects) {
-  const backupProject = projects.map(project => ({
-    grant_type: project.grant_type,
-    client_id: project.client_id,
-    client_secret: project.client_secret,
-    callFlowId: project.callFlowId,
-    projectId: project.projectId,
-    action: 'start', // 將 action 狀態設為 start
-    projectCallData: null, // 不需要備份 projectCallData
-  }));
+  try {
+    const backupProject = projects.map(project => ({
+      grant_type: project.grant_type,
+      client_id: project.client_id,
+      client_secret: project.client_secret,
+      callFlowId: project.callFlowId,
+      projectId: project.projectId,
+      action: project.action,
+      projectCallData: null, // 不需要備份 projectCallData
+    }));
 
-  const configName = process.env.BONSALE_CONFIG_NAME;
-  updateBonsaleConfig(configName, backupProject);
+    const configName = process.env.BONSALE_CONFIG_NAME;
+    const bonsaleConfig = await updateBonsaleConfig(configName, JSON.stringify(backupProject));
+    console.log('備份專案至 Bonsale config 成功:', bonsaleConfig);
+  } catch (error) {
+    errorWithTimestamp('Error while backing up projects to Bonsale config:', error.message);
+  }
+
 }
 
 // projectOutbound API - 將專案加入自動撥號佇列
