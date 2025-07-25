@@ -130,7 +130,8 @@ async function autoOutbound(project, projectIndex, projectArray) {
           if (firstOutbounCall.tag === 'notAvailable') {
             projectArray[projectIndex] = {
               ...project,
-              action: 'error - notAvailable', // 將專案狀態設為 warning
+              action: 'error - notAvailable', // 將專案狀態設為 error - notAvailable
+              error: null, // 清除錯誤訊息
             };
             return; // 中斷撥打
           }
@@ -175,17 +176,25 @@ async function autoOutbound(project, projectIndex, projectArray) {
         // 如果撥打失敗，將專案狀態設為 error
         if (!secondOutboundCall.success) {
           errorWithTimestamp(`專案 ${projectId} 撥打電話失敗: ${secondOutboundCall.message}`);
+          if (secondOutboundCall.tag === 'notAvailable') {
+            projectArray[projectIndex] = {
+              ...project,
+              action: 'error - notAvailable', // 將專案狀態設為 error - notAvailable
+              error: null, // 清除錯誤訊息
+            };
+            return; // 中斷撥打
+          }
           projectArray[projectIndex] = {
             ...project,
             action: 'error', // 將專案狀態設為 error
             error: secondOutboundCall.message, // 儲存錯誤訊息
           };
-          return;
+          return; // 中斷撥打
         }
 
         projectArray[projectIndex] = {
           ...project,
-          action: 'waiting', // 撥打完第一輪後，將 action 改為 waiting
+          action: 'waiting', // 撥打完第二輪後，將 action 改為 waiting
           _toCall: { phone, customerId },
           _makeCallTimes: new Date().getTime(), // 記錄撥打時間戳記
           error: null, // 清除錯誤訊息
