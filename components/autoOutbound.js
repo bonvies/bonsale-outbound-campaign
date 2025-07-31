@@ -22,7 +22,7 @@ async function startGetOutboundList(callFlowId, projectId, callState) {
   if (outboundDataList.data.list.length > 0) {
     logWithTimestamp(`專案 ${projectId} / ${callFlowId} 有可撥打的名單，開始撥打電話`);
     const outboundData = outboundDataList.data.list[0];
-    const { phone, id: customerId } = outboundData.customer
+    const { phone, id: customerId } = outboundData.customer;
 
     // await projectOutboundMakeCall(grant_type, client_id, client_secret, firstOutboundData.data[0].phone, projectId, customerId);
     return { phone, customerId };
@@ -45,7 +45,7 @@ function autoOutboundWatchDog(action, project, projectIndex, projectArray) {
     const lastCallTime = project._makeCallTimes || 0; // 如果沒有撥打時間，則默認為 0
     const timeDifference = currentTime - lastCallTime; // 計算時間差
 
-    if (timeDifference >= 60 * 1500) { // 如果時間差大於等於 1.5 分鐘
+    if (timeDifference >= 60 * 1000 * 1.5) { // 如果時間差大於等於 1.5 分鐘
       logWithTimestamp(`警告：專案 ${projectId} / ${callFlowId} 已經等待超過 1 分鐘，開始強制更新狀態 callState === 2`);
       const { customerId } = project._toCall;
 

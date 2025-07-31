@@ -33,6 +33,7 @@ clientWsProjectOutbound.on('connection', (ws) => {
 });
 
 let isApiRunning = false; // 用來判斷 API 是否正在運行
+let isAutoDialProcessing = false; // 用來判斷自動撥號是否正在執行
 
 let globalToken = null;
 
@@ -127,35 +128,38 @@ async function getGlobalToken() {
   return token;
 }
 
-function projectsIntervalAutoOutbound() {
+async function projectsIntervalAutoOutbound() {
   // 如果沒有專案，就不進行撥號
   if (projects.length === 0) {
     logWithTimestamp('沒有專案，跳過自動撥號');
     return;
   }
 
-  (async () => {
-    for (let projectIndex = 0; projectIndex < projects.length; projectIndex++) {
-      const project = projects[projectIndex];
-      // 隨機延遲 0-50 毫秒再執行 throttledAutoOutbound
-      const randomDelay = Math.floor(Math.random() * 101); // 0~50 ms
-      await new Promise(resolve => setTimeout(resolve, randomDelay));
-      try {
-        const called = await throttledAutoOutbound(project, projectIndex, projects);
-        if (called) {
-          projects[projectIndex].currentMakeCall = called.currentMakeCall; // 更新專案的 currentMakeCall 狀態
-          activeCallQueue.push(called.addInActiveCallQueue);
-        }
-      } catch (err) {
-        errorWithTimestamp(`自動外撥專案 [${project.projectId}] 發生錯誤:`, err.message);
+  for (let projectIndex = 0; projectIndex < projects.length; projectIndex++) {
+    const project = projects[projectIndex];
+    // 隨機延遲 0-100 毫秒再執行 throttledAutoOutbound
+    const randomDelay = Math.floor(Math.random() * 101); // 0~100 ms
+    await new Promise(resolve => setTimeout(resolve, randomDelay));
+    try {
+      const called = await throttledAutoOutbound(project, projectIndex, projects);
+      if (called) {
+        projects[projectIndex].currentMakeCall = called.currentMakeCall; // 更新專案的 currentMakeCall 狀態
+        activeCallQueue.push(called.addInActiveCallQueue);
       }
+    } catch (err) {
+      errorWithTimestamp(`自動外撥專案 [${project.projectId}] 發生錯誤:`, err.message);
     }
-  })();
+  }
 }
 
 // 每 CALL_GAP_TIME 秒 進行自動撥號 並 檢查撥號狀態
 setInterval(async () => {
-  console.log("================================Start================================");
+  // 如果前一輪自動撥號還在執行中，跳過本次執行
+  if (isAutoDialProcessing) {
+    logWithTimestamp('前一輪自動撥號還在執行中，跳過本次執行');
+    return;
+  }
+
   // 如果正在運行 API，就跳過本次自動撥號
   // 這是為了避免在 API 改變 project 狀態時，導致自動撥號的狀態不一致
   if (isApiRunning) {
@@ -163,25 +167,29 @@ setInterval(async () => {
     return; // 如果 API 正在運行，就跳過本次自動撥號
   }
 
-  // 每 CALL_GAP_TIME 秒 專案進行自動撥號
-  projectsIntervalAutoOutbound()
+  isAutoDialProcessing = true; // 設置執行標誌
+  
+  try {
+    console.log("================================Start================================");
+    
+    // 每 CALL_GAP_TIME 秒 專案進行自動撥號
+    await projectsIntervalAutoOutbound();
 
-  // logWithTimestamp(`每 ${CALL_GAP_TIME} 秒檢查一次撥號狀態`);
-  if (!globalToken) { // 如果沒有 token 就 get3cxToken
-    logWithTimestamp('沒有 globalToken，嘗試獲取 3CX token');
-    const fetch_get3cxToken = await getGlobalToken();
+    // logWithTimestamp(`每 ${CALL_GAP_TIME} 秒檢查一次撥號狀態`);
+    if (!globalToken) { // 如果沒有 token 就 get3cxToken
+      logWithTimestamp('沒有 globalToken，嘗試獲取 3CX token');
+      const fetch_get3cxToken = await getGlobalToken();
 
-    if (!fetch_get3cxToken) {
-      errorWithTimestamp('獲取 3CX token 失敗，無法繼續執行自動撥號');
-      return; // 如果獲取 token 失敗，就不進行後續操作
+      if (!fetch_get3cxToken) {
+        errorWithTimestamp('獲取 3CX token 失敗，無法繼續執行自動撥號');
+        return; // 如果獲取 token 失敗，就不進行後續操作
+      };
+
+      globalToken = fetch_get3cxToken; // 更新 globalToken
+      logWithTimestamp('獲取 3CX token 成功:', globalToken);
+      return;
     };
 
-    globalToken = fetch_get3cxToken; // 更新 globalToken
-    logWithTimestamp('獲取 3CX token 成功:', globalToken);
-    return;
-  };
-
-  try {
     // 獲取目前活躍的撥號狀態
     const fetch_getActiveCalls = await activeCalls(globalToken);
     logWithTimestamp('獲取目前活躍的撥號狀態:', fetch_getActiveCalls?.data?.value);
@@ -190,15 +198,15 @@ setInterval(async () => {
     // 這邊的狀況是 token 失效了，這時候我們要重新拿 token 讓流程持續
     if (!fetch_getActiveCalls.success && fetch_getActiveCalls.error.status === 401) {
       warnWithTimestamp('3CX token 失效，重新拿 token 讓流程持續');
-    const fetch_get3cxToken = await getGlobalToken();
+      const fetch_get3cxToken = await getGlobalToken();
 
-    if (!fetch_get3cxToken) {
-      errorWithTimestamp('獲取 3CX token 失敗，無法繼續執行自動撥號');
-      return; // 如果獲取 token 失敗，就不進行後續操作
-    };
+      if (!fetch_get3cxToken) {
+        errorWithTimestamp('獲取 3CX token 失敗，無法繼續執行自動撥號');
+        return; // 如果獲取 token 失敗，就不進行後續操作
+      };
 
-    globalToken = fetch_get3cxToken; // 更新 globalToken
-      return
+      globalToken = fetch_get3cxToken; // 更新 globalToken
+      return;
     }
 
     const activeCall = fetch_getActiveCalls.data; // 目前活躍的撥號狀態
@@ -242,6 +250,8 @@ setInterval(async () => {
     console.log("================================End================================");
   } catch (error) {
     errorWithTimestamp('Error while checking active calls:', error.message);
+  } finally {
+    isAutoDialProcessing = false; // 確保執行標誌被重置
   }
 }, CALL_GAP_TIME * 1000); // 每 CALL_GAP_TIME 秒檢查一次撥號狀態
 
@@ -275,7 +285,7 @@ router.post('/', async function(req, res) {
 
     if (!grant_type || !client_id || !client_secret || !callFlowId || !projectId || !action) {
       errorWithTimestamp('Missing required fields');
-      res.status(400).send('Missing required fields');
+      return res.status(400).send('Missing required fields');
     }
     // 檢查專案是否已存在
     const existingProject = projects.find(project => project.projectId === projectId);
@@ -423,7 +433,7 @@ router.delete('/:projectId', async function(req, res) {
     // recording: 開始紀錄
     if (!projectId) {
       errorWithTimestamp('Missing required fields');
-      res.status(400).send('Missing required fields');
+      return res.status(400).send('Missing required fields');
     }
 
     // 檢查專案是否已存在
