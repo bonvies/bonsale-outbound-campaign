@@ -1,12 +1,39 @@
 #!/usr/bin/env node
+const { projects } = require('../routes/projectOutbound');
+const { backupProjectsToBonsaleConfig } = require('../routes/projectOutbound');
+const { getTaiwanTimestamp, logWithTimestamp, warnWithTimestamp, errorWithTimestamp } = require('../util/timestamp.js');
+
+// 監聽程式結束的訊號
+async function gracefulShutdown(signal) {
+  logWithTimestamp(`收到 ${signal} 信號，開始備份專案資料...`);
+  try {
+    // 先停止伺服器接收新的請求
+    server.close(() => {
+      logWithTimestamp('HTTP server closed');
+    });
+
+    // 備份資料
+    await backupProjectsToBonsaleConfig();
+    logWithTimestamp('專案資料備份完成，準備關閉程式');
+    process.exit(0);
+  } catch (error) {
+    errorWithTimestamp('備份失敗:', error);
+    process.exit(1);
+  }
+}
+
+// 監聽各種結束信號
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM')); // docker container stop
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));   // Ctrl+C
+process.on('SIGHUP', () => gracefulShutdown('SIGHUP'));   // 終端機關閉
 
 // 攔截未捕捉的錯誤，避免伺服器直接 crash
 process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
+  errorWithTimestamp('Uncaught Exception:', err);
   // 可選：決定是否 process.exit(1)
 });
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  errorWithTimestamp('Unhandled Rejection at:', promise, 'reason:', reason);
   // 可選：決定是否 process.exit(1)
 });
 
