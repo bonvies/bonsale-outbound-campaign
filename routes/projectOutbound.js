@@ -40,6 +40,8 @@ const activeCallQueue = []; // 儲存活躍撥號的佇列
 
 let bonsaleConfig = null;
 
+let isProjectErrorAutoRestart = process.env.IS_PROJECT_ERROR_AUTO_RESTART === 'true' ? true : false; // 是否啟用專案錯誤自動重啟功能
+
 let projects = []; // 一開始設為空陣列
 /* 
   projects 的資料結構
@@ -141,7 +143,7 @@ function projectsIntervalAutoOutbound() {
       const randomDelay = Math.floor(Math.random() * 101); // 0~50 ms
       await new Promise(resolve => setTimeout(resolve, randomDelay));
       try {
-        const called = await throttledAutoOutbound(project, projectIndex, projects);
+        const called = await throttledAutoOutbound(project, projectIndex, projects, isProjectErrorAutoRestart);
         if (called) {
           projects[projectIndex].currentMakeCall = called.currentMakeCall; // 更新專案的 currentMakeCall 狀態
           activeCallQueue.push(called.addInActiveCallQueue);
@@ -155,6 +157,7 @@ function projectsIntervalAutoOutbound() {
 
 // 每 CALL_GAP_TIME 秒 進行自動撥號 並 檢查撥號狀態
 setInterval(async () => {
+  console.log(isProjectErrorAutoRestart);
   console.log("================================Start================================");
   // 如果正在運行 API，就跳過本次自動撥號
   // 這是為了避免在 API 改變 project 狀態時，導致自動撥號的狀態不一致
@@ -293,6 +296,35 @@ router.post('/', async function(req, res) {
 
     res.status(200).send({
       message: 'Request projectOutbound successfully'
+    });
+  } finally {
+    isApiRunning = false; // API 結束，設為 false
+  }
+});
+
+router.get('/isProjectErrorAutoRestart', async function(req, res) {
+  try {
+    res.status(200).send({
+      isProjectErrorAutoRestart: isProjectErrorAutoRestart
+    });
+  } catch (err) {
+    errorWithTimestamp('獲取專案錯誤自動重啟狀態失敗:', err.message);
+    res.status(500).send('獲取專案錯誤自動重啟狀態失敗');
+  }
+});
+
+// projectOutbound API - 變更是否啟用專案錯誤自動重啟功能
+router.put('/isProjectErrorAutoRestart', async function(req, res) {
+  isApiRunning = true; // API 開始，設為 true
+  try {
+    const { isEnabled } = req.body;
+    if (typeof isEnabled !== 'boolean') {
+      errorWithTimestamp('Invalid request body');
+      return res.status(400).send('Invalid request body');
+    }
+    isProjectErrorAutoRestart = isEnabled;
+    res.status(200).send({
+      message: `Project error auto restart ${isProjectErrorAutoRestart ? 'enabled' : 'disabled'} successfully`
     });
   } finally {
     isApiRunning = false; // API 結束，設為 false
