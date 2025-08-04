@@ -32,7 +32,7 @@ async function startGetOutboundList(callFlowId, projectId, callState) {
   }
 };
 
-function autoOutboundWatchDog(action, project, projectIndex, projectArray) {
+function autoOutboundWatchDog(action, project, projectIndex, projectArray, isProjectErrorAutoRestart) {
   const { projectId, callFlowId } = project;
 
   if(mainActionType(action) === 'active') {
@@ -94,18 +94,40 @@ function autoOutboundWatchDog(action, project, projectIndex, projectArray) {
   } else if (mainActionType(action) === 'pause') {
     logWithTimestamp(`專案 ${projectId} / ${callFlowId} 狀態為 'pause'，已經暫停撥打`);
     return false; // 不需要再撥打電話
+  } else if (mainActionType(action) === 'error') {
+    if (isProjectErrorAutoRestart) {
+      logWithTimestamp(`專案 ${projectId} / ${callFlowId} 狀態為 'error'，開始重新撥打`);
+      projectArray[projectIndex] = {
+        ...project,
+        action: 'active', // 將專案狀態設為 'active'
+        error: null, // 清除錯誤訊息
+      };
+      return true; // 可以撥打電話
+    } else {
+      if (action === 'error - notAvailable') {
+        logWithTimestamp(`專案 ${projectId} / ${callFlowId} 狀態為 'error - notAvailable'，自動重新撥打`);
+        projectArray[projectIndex] = {
+          ...project,
+          action: 'active', // 將專案狀態設為 'active'
+          error: null, // 清除錯誤訊息
+        };
+        return false; // 不需要再撥打電話
+      }
+      logWithTimestamp(`專案 ${projectId} / ${callFlowId} 狀態為 'error'，不進行重新撥打`);
+      return false; // 不需要再撥打電話
+    }
   } else {
     return false; // 其他狀態不撥打電話
   }
 }
 
 // 撥打邏輯
-async function autoOutbound(project, projectIndex, projectArray) {
+async function autoOutbound(project, projectIndex, projectArray, isProjectErrorAutoRestart) {
   try {
     // 檢查專案 action 狀態
     const { grant_type, client_id, client_secret, callFlowId, projectId, action } = project;
 
-    if (autoOutboundWatchDog(action, project, projectIndex, projectArray)) {
+    if (autoOutboundWatchDog(action, project, projectIndex, projectArray, isProjectErrorAutoRestart)) {
       // 先抓 callState = 0 名單
       const firstOutboundData = await startGetOutboundList(callFlowId, projectId, 0);
       if (firstOutboundData) {
