@@ -19,6 +19,7 @@ The application uses the following environment variables. These should be define
 | `ADMIN_3CX_CLIENT_ID`     | `your_3CX_client_id`                                       | The client ID for 3CX admin API.             |
 | `ADMIN_3CX_CLIENT_SECRET` | `your_admin_client_secret`                    | The client secret for 3CX admin API.         |
 | `ADMIN_3CX_GRANT_TYPE`    | `client_credentials`                          | The grant type for 3CX admin API.            |
+| `IS_PROJECT_ERROR_AUTO_RESTART` | `true` or `false`                   | (Optional) Enable automatic restart for projects when errors occur. Default: `false` |
 | `DISCORD_ERROR_ALERT_GAP_TIME` | `your_discord_error_alert_gap_time` | (Optional) The interval (in seconds) for monitoring errors and sending Discord alerts. |
 | `DISCORD_BOT_TOKEN` | `your_discord_bot_token`| (Optional) Discord bot token for sending error notifications. |
 | `DISCORD_CHANNEL_ID` | `your_discord_channel_id` | (Optional) Discord channel ID to receive error notifications. |
@@ -41,6 +42,9 @@ BONSALE_CONFIG_NAME=3CX-projectOutbound-history
 ADMIN_3CX_CLIENT_ID=your_3CX_client_id
 ADMIN_3CX_CLIENT_SECRET=your_admin_client_secret
 ADMIN_3CX_GRANT_TYPE=client_credentials
+
+# Project error auto restart
+IS_PROJECT_ERROR_AUTO_RESTART=true  # Optional: Enable automatic restart for projects when errors occur
 
 # Discord error alert settings
 DISCORD_ERROR_ALERT_GAP_TIME=300  # Optional: Enable Discord error alert, unit is seconds
