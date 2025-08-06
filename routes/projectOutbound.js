@@ -243,10 +243,14 @@ setInterval(async () => {
     errorWithTimestamp('Error while checking active calls:', error.message);
   } finally {
     isAutoDialProcessing = false; // 確保執行標誌被重置
-    
-    // 將匹配的撥號物件傳送給 WebSocket Server 的所有連線客戶端
-    logWithTimestamp('自動外撥專案實況',projects);
-    clientWsProjectOutbound.clients.forEach((client) => {
+  }
+}, CALL_GAP_TIME * 1000); // 每 CALL_GAP_TIME 秒檢查一次撥號狀態
+
+// 將匹配的撥號物件傳送給 WebSocket Server 的所有連線客戶端
+setInterval(() => {
+  logWithTimestamp('自動外撥專案實況', projects);
+  clientWsProjectOutbound.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN) { // 檢查連線狀態
       const toClientProjects = projects.map(project => ({
         projectId: project.projectId,
         action: project.action,
@@ -254,9 +258,9 @@ setInterval(async () => {
         projectCallData: project.projectCallData,
       }));
       client.send(JSON.stringify(toClientProjects));
-    });
-  }
-}, CALL_GAP_TIME * 1000); // 每 CALL_GAP_TIME 秒檢查一次撥號狀態
+    }
+  });
+}, CALL_GAP_TIME * 1000); // 每 CALL_GAP_TIME 秒發送一次，獨立於主要邏輯
 
 
 // project 同時備份至 bonsale config 紀錄
